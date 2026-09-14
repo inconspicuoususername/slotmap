@@ -9,12 +9,12 @@ module;
 
 export module slotmap.storage:paged_store;
 
-namespace slotmap {
+namespace inco {
     // Paged pool with fixed size pages
     //store is pointer stable, since pages are not moved after allocation
     // would have used boost deque but it default constructs on resize
     // also iirc neither boost deque nor segmented vector or std deque use pow 2 indexing
-    export template <
+    export template<
         class T,
         std::size_t BytesPerPage = 16 * 1024,
         std::size_t MinSlots = 32
@@ -39,12 +39,12 @@ namespace slotmap {
         static constexpr std::size_t page_shift = std::countr_zero(page_slots);
         static constexpr std::size_t page_mask = page_slots - 1;
 
-        [[nodiscard]] T* at(std::size_t i) noexcept {
+        [[nodiscard]] T *at(std::size_t i) noexcept {
             return slot_ptr(i >> page_shift, i & page_mask);
         }
 
-        [[nodiscard]] const T* at(std::size_t i) const noexcept {
-            return const_cast<PagedStore*>(this)->at(i);
+        [[nodiscard]] const T *at(std::size_t i) const noexcept {
+            return const_cast<PagedStore *>(this)->at(i);
         }
 
         // alloc up to cap - 1 total capacity
@@ -58,8 +58,8 @@ namespace slotmap {
             return pages_.size() * page_slots;
         }
 
-        template <class... Args>
-        T* construct(std::size_t i, Args&&... args) {
+        template<class... Args>
+        T *construct(std::size_t i, Args &&... args) {
             return std::construct_at(at(i), std::forward<Args>(args)...);
         }
 
@@ -76,8 +76,8 @@ namespace slotmap {
             return p;
         }
 
-        T* slot_ptr(std::size_t page, std::size_t off) noexcept {
-            return reinterpret_cast<T*>(pages_[page]->bytes) + off;
+        T *slot_ptr(std::size_t page, std::size_t off) noexcept {
+            return reinterpret_cast<T *>(pages_[page]->bytes) + off;
         }
 
         std::vector<std::unique_ptr<Page> > pages_{};

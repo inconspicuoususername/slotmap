@@ -5,7 +5,7 @@ module;
 
 export module slotmap:key;
 
-namespace slotmap {
+namespace inco {
     // Default key layout
     export struct KeyLayout32_32 {
         using underlying = std::uint64_t;
@@ -21,11 +21,11 @@ namespace slotmap {
     };
 
     // tag only exists to make type instances different enum class style
-    export template <class Tag, class Layout = KeyLayout32_32>
+    export template<class Tag, class Layout = KeyLayout32_32>
     struct Key {
         using underlying = typename Layout::underlying;
         static constexpr underlying index_mask =
-            (underlying{1} << Layout::index_bits) - 1;
+                (underlying{1} << Layout::index_bits) - 1;
 
         // low index_bits = index
         // high version_bits = version
@@ -48,11 +48,11 @@ namespace slotmap {
         make(underlying index, underlying version) noexcept {
             return Key{(version << Layout::index_bits) | (index & index_mask)};
         }
-        
+
         [[nodiscard]] explicit constexpr operator underlying() const noexcept {
             return raw;
         }
 
-        friend constexpr auto operator<=>(const Key&, const Key&) = default;
+        friend constexpr auto operator<=>(const Key &, const Key &) = default;
     };
 }

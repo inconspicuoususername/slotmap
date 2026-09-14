@@ -15,7 +15,7 @@ import slotmap.storage;
 import slotmap.concepts;
 import slotmap.iterators;
 
-namespace slotmap {
+namespace inco {
     export template <
         class T,
         class Tag = T,
@@ -98,7 +98,7 @@ namespace slotmap {
         }
 
         // Result<..> version of find
-        [[nodiscard]] result::Result<Ref<T> > at(key_type k) {
+        [[nodiscard]] result::Result<Ref<T> > at(key_type k) const {
             if (T* p = find(k)) return Ref<T>{*p};
             return result::fail("invalid key provided");
         }

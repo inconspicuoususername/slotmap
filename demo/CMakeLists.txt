@@ -7,4 +7,4 @@ target_sources(slotmap-demo
         ${CMAKE_CURRENT_SOURCE_DIR}/demo.cppm
 )
 
-target_link_libraries(slotmap-demo PRIVATE ic::slotmap)
+target_link_libraries(slotmap-demo PRIVATE inco::slotmap)

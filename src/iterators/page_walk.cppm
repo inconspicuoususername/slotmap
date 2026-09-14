@@ -7,13 +7,13 @@ import slotmap.free;
 import slotmap.utils;
 import slotmap.concepts;
 
-namespace slotmap {
+namespace inco {
     // a regular bit walk iterator, but the
     // page base pointer is resolved once per word via one at()
     // call and then indexed by bit.
     //
     // Requires page_slots % word_bits == 0 so a word is at the very least one page
-    export template <class T, class Store>
+    export template<class T, class Store>
         requires Storage<Store, T>
     class PageWalkIter {
     public:
@@ -30,24 +30,24 @@ namespace slotmap {
 
         PageWalkIter() = default;
 
-        PageWalkIter(const HierarchicalBitmap& bm, Store& store) noexcept
+        PageWalkIter(const HierarchicalBitmap &bm, Store &store) noexcept
             : _bitmap(&bm), _store(&store),
-              _total_words(ic::ceil_div(bm.capacity(),
-                                        HierarchicalBitmap::word_bits)) {
+              _total_words(ceil_div(bm.capacity(),
+                                    HierarchicalBitmap::word_bits)) {
             if (_total_words) _current_word = bm.word_at(0);
             seek();
         }
 
         entry operator*() const noexcept {
             const std::size_t idx =
-                _word_idx * HierarchicalBitmap::word_bits + _bit;
+                    _word_idx * HierarchicalBitmap::word_bits + _bit;
             return entry{
                 .index = idx,
                 .value = _wbase[_bit]
             };
         }
 
-        PageWalkIter& operator++() noexcept {
+        PageWalkIter &operator++() noexcept {
             _current_word &= _current_word - 1;
             if (_current_word) {
                 _bit = static_cast<std::size_t>(
@@ -79,9 +79,9 @@ namespace slotmap {
             _bit = static_cast<std::size_t>(std::countr_zero(_current_word));
         }
 
-        const HierarchicalBitmap* _bitmap = nullptr;
-        Store* _store = nullptr;
-        T* _wbase = nullptr;
+        const HierarchicalBitmap *_bitmap = nullptr;
+        Store *_store = nullptr;
+        T *_wbase = nullptr;
         std::size_t _total_words = 0;
         std::size_t _word_idx = 0;
         std::size_t _bit = 0;

@@ -7,7 +7,7 @@ module;
 
 export module slotmap.free:freelist;
 
-namespace slotmap {
+namespace inco {
     // a (not yet(?) intrusive) free-list
     //
     //

@@ -8,11 +8,11 @@ import slotmap.free;
 import slotmap.utils;
 import slotmap.concepts;
 
-namespace slotmap {
+namespace inco {
     // Identitcal to the page walk iterator
     // walk but PageWalk does the page lookup once per word (a word's 64 slots share one
     // page), so its faster in iteration
-    export template <class T, class Store>
+    export template<class T, class Store>
         requires Storage<Store, T>
     class BitWalkIter {
     public:
@@ -25,10 +25,10 @@ namespace slotmap {
 
         BitWalkIter() = default;
 
-        BitWalkIter(const HierarchicalBitmap& bm, Store& store) noexcept
+        BitWalkIter(const HierarchicalBitmap &bm, Store &store) noexcept
             : _bitmap(&bm), _store(&store),
-              _total_words(ic::ceil_div(bm.capacity(),
-                                        HierarchicalBitmap::word_bits)) {
+              _total_words(ceil_div(bm.capacity(),
+                                    HierarchicalBitmap::word_bits)) {
             if (_total_words) _current_word = bm.word_at(0);
             seek();
         }
@@ -37,7 +37,7 @@ namespace slotmap {
             return entry{.index = _cur, .value = *_store->at(_cur)};
         }
 
-        BitWalkIter& operator++() noexcept {
+        BitWalkIter &operator++() noexcept {
             _current_word &= _current_word - 1;
             seek();
             return *this;
@@ -50,8 +50,6 @@ namespace slotmap {
         }
 
     private:
-        // land on the lowest set bit of the current word, advancing over empty
-        // words until one has a bit set or we run out
         void seek() noexcept {
             while (!_current_word) {
                 if (++_word_idx >= _total_words) {
@@ -64,8 +62,8 @@ namespace slotmap {
                    static_cast<std::size_t>(std::countr_zero(_current_word));
         }
 
-        const HierarchicalBitmap* _bitmap = nullptr;
-        Store* _store = nullptr;
+        const HierarchicalBitmap *_bitmap = nullptr;
+        Store *_store = nullptr;
         std::size_t _total_words = 0;
         std::size_t _word_idx = 0;
         std::size_t _cur = 0;

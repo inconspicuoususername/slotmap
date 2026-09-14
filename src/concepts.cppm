@@ -6,9 +6,9 @@ module;
 
 export module slotmap.concepts;
 
-namespace slotmap {
+namespace inco {
     // Bitmap and FreeList concept
-    export template <class F>
+    export template<class F>
     concept FreeFinder = requires(F f, const F cf, std::size_t n)
     {
         { f.acquire() } -> std::same_as<std::optional<std::size_t> >;
@@ -19,10 +19,10 @@ namespace slotmap {
 
     // Storage concept
     // currently .at returns a ptr but prolly should return const ref or something ismilar
-    export template <class S, class T>
+    export template<class S, class T>
     concept Storage = requires(S s, const S cs, std::size_t n)
     {
-        { s.at(n) } -> std::same_as<T*>;
+        { s.at(n) } -> std::same_as<T *>;
         { s.ensure(n) };
         { cs.capacity() } -> std::convertible_to<std::size_t>;
     };

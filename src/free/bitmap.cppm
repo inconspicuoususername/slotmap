@@ -11,7 +11,7 @@ module;
 export module slotmap.free:bitmap;
 import slotmap.utils;
 
-namespace slotmap {
+namespace inco {
     // Hierarchical summary bitmap
     //
     // Contains an array of "levels" of 64-bit words, meaning an array of vectors, where
@@ -29,7 +29,7 @@ namespace slotmap {
         static constexpr word full = ~word{0};
         static constexpr std::size_t max_levels = 6; // 64^6 > 2^32, cca 68 bil
         static constexpr std::size_t max_items =
-            ic::pow(word_bits, max_levels);
+            pow(word_bits, max_levels);
 
         static constexpr std::size_t LEAF_LEVEL = 0;
 
@@ -92,7 +92,7 @@ namespace slotmap {
 
             //convert total slots into words. ceil div because any overflow must be a new word
             // rather than the default floor of integer division
-            const std::size_t leaf_words = ic::ceil_div(slots, word_bits);
+            const std::size_t leaf_words = ceil_div(slots, word_bits);
 
             if (_depth == 0) _depth = 1;
             // new leaf words should be initialized to 0
@@ -102,7 +102,7 @@ namespace slotmap {
             std::size_t child_words = leaf_words;
             for (std::size_t l = 1; child_words > 1; ++l) {
                 // e.g. 3 words for 192 requested slots
-                const std::size_t need = ic::ceil_div(child_words, word_bits);
+                const std::size_t need = ceil_div(child_words, word_bits);
                 if (l < _depth) {
                     // if we're still in the already claimed levels, just expand it so that
                     // it fits the new per-level need

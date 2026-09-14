@@ -11,7 +11,7 @@ if (NOT TARGET result::result)
 endif ()
 
 add_library(slotmap STATIC)
-add_library(ic::slotmap ALIAS slotmap)
+add_library(inco::slotmap ALIAS slotmap)
 
 file(GLOB_RECURSE out_CPP_MODULE_SOURCES CONFIGURE_DEPENDS "src/*.cppm")
 

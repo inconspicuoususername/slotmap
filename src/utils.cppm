@@ -3,7 +3,7 @@ module;
 #include <cstddef>
 export module slotmap.utils;
 
-namespace ic {
+namespace inco {
     // `std::pow` is not consteval so yeah thank you WG21
     export consteval double pow(const double base, const int exp) noexcept { // NOLINT(bugprone-easily-swappable-parameters)
         double res = 1.0;

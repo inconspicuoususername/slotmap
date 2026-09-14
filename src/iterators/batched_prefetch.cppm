@@ -11,7 +11,7 @@ import slotmap.concepts;
 import slotmap.storage;
 import :entity;
 
-namespace slotmap {
+namespace inco {
     // rough logic description
     //
     // dense-iterate
@@ -32,18 +32,18 @@ namespace slotmap {
 
         BatchedHierarchichalBitmapIterator() = default;
 
-        explicit BatchedHierarchichalBitmapIterator(const HB& bm) noexcept
+        explicit BatchedHierarchichalBitmapIterator(const HB &bm) noexcept
             : _bitmap(&bm),
-              _num_leaf_words(ic::ceil_div(bm.capacity(), HB::word_bits)) {
+              _num_leaf_words(ceil_div(bm.capacity(), HB::word_bits)) {
             if (_num_leaf_words) _current_word = bm.word_at(0);
         }
 
         // fills out with up to n next indices
         // returns total indices or 0 if we're done
         // TODO implement sparse logic sumwhere here
-        template <std::size_t N>
+        template<std::size_t N>
         std::size_t fill_next_batch(
-            std::array<std::uint32_t, N>& out
+            std::array<std::uint32_t, N> &out
         ) noexcept {
             std::size_t n = 0;
             while (true) {
@@ -61,13 +61,13 @@ namespace slotmap {
         }
 
     private:
-        const HB* _bitmap = nullptr;
+        const HB *_bitmap = nullptr;
         std::size_t _num_leaf_words = 0;
         std::size_t _word_idx = 0;
         word _current_word = 0;
     };
 
-    template <
+    template<
         class T,
         class Store,
         std::size_t Batch = 32
@@ -83,11 +83,11 @@ namespace slotmap {
         using iterator_concept = std::input_iterator_tag;
 
         using batch_array = std::array<std::uint32_t, Batch>;
-        using batch_array_ptr = batch_array*;
+        using batch_array_ptr = batch_array *;
 
         BatchedPagedIterator(
-            Store& store,
-            const HierarchicalBitmap& bm
+            Store &store,
+            const HierarchicalBitmap &bm
         ) noexcept
             : _bitmap_iterator(bm),
               _store(&store),
@@ -104,7 +104,7 @@ namespace slotmap {
             };
         }
 
-        BatchedPagedIterator& operator++() noexcept {
+        BatchedPagedIterator &operator++() noexcept {
             if (++_cursor != _current_count)
                 return *this;
 
@@ -122,16 +122,16 @@ namespace slotmap {
         }
 
     private:
-        void fill(batch_array_ptr& buf,
-                  std::size_t& count) noexcept {
+        void fill(batch_array_ptr &buf,
+                  std::size_t &count) noexcept {
             count = _bitmap_iterator.fill_next_batch(*buf);
 
             for (std::size_t i = 0; i < count; ++i)
-                ic::prefetch_read(_store->at(buf->at(i)));
+                prefetch_read(_store->at(buf->at(i)));
         }
 
         BatchedHierarchichalBitmapIterator _bitmap_iterator{};
-        Store* _store = nullptr;
+        Store *_store = nullptr;
 
         batch_array current_{};
         batch_array next_{};
@@ -144,7 +144,7 @@ namespace slotmap {
         std::size_t _cursor = 0;
     };
 
-    template <
+    template<
         std::size_t Batch = 16,
         class T,
         std::size_t BytesPerPage,
@@ -153,26 +153,26 @@ namespace slotmap {
     >
     [[deprecated("use PageWalkIter")]]
     void for_each_prefetched(
-        const HierarchicalBitmap& bitmap,
-        PagedStore<T, BytesPerPage, MinSlots>& store,
-        Fn&& fn
+        const HierarchicalBitmap &bitmap,
+        PagedStore<T, BytesPerPage, MinSlots> &store,
+        Fn &&fn
     ) {
         BatchedHierarchichalBitmapIterator iter{bitmap};
         std::array<std::uint32_t, Batch> batch_a{}, batch_b{};
-        auto* cur = &batch_a;
-        auto* nxt = &batch_b;
+        auto *cur = &batch_a;
+        auto *nxt = &batch_b;
 
         std::size_t curr_batch_sz = iter.fill_next_batch(*cur);
         for (std::size_t i = 0; i < curr_batch_sz; ++i)
             // pre fill first batch
-            ic::prefetch_read(store.at((*cur)[i]));
+            prefetch_read(store.at((*cur)[i]));
 
         while (curr_batch_sz) {
             const std::size_t next_batch_sz = iter.fill_next_batch(*nxt);
 
             // prefill next batch
             for (std::size_t i = 0; i < next_batch_sz; ++i)
-                ic::prefetch_read(store.at((*nxt)[i]));
+                prefetch_read(store.at((*nxt)[i]));
 
             //eat
             for (std::size_t i = 0; i < curr_batch_sz; ++i) {
