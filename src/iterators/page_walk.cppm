@@ -1,0 +1,91 @@
+module;
+#include <cstddef>
+#include <iterator>
+export module slotmap.iterators:page_walk;
+import :entity;
+import slotmap.free;
+import slotmap.utils;
+import slotmap.concepts;
+
+namespace slotmap {
+    // a regular bit walk iterator, but the
+    // page base pointer is resolved once per word via one at()
+    // call and then indexed by bit.
+    //
+    // Requires page_slots % word_bits == 0 so a word is at the very least one page
+    export template <class T, class Store>
+        requires Storage<Store, T>
+    class PageWalkIter {
+    public:
+        using entry = SlotMapIteratorEntry<T>;
+        using value_type = entry;
+        using reference = entry;
+        using pointer = void;
+        using difference_type = std::ptrdiff_t;
+        using iterator_concept = std::input_iterator_tag;
+
+        static_assert(
+            Store::page_slots % HierarchicalBitmap::word_bits == 0,
+            "PageWalkIter requires each leaf word's slots to fit in one page");
+
+        PageWalkIter() = default;
+
+        PageWalkIter(const HierarchicalBitmap& bm, Store& store) noexcept
+            : _bitmap(&bm), _store(&store),
+              _total_words(ic::ceil_div(bm.capacity(),
+                                        HierarchicalBitmap::word_bits)) {
+            if (_total_words) _current_word = bm.word_at(0);
+            seek();
+        }
+
+        entry operator*() const noexcept {
+            const std::size_t idx =
+                _word_idx * HierarchicalBitmap::word_bits + _bit;
+            return entry{
+                .index = idx,
+                .value = _wbase[_bit]
+            };
+        }
+
+        PageWalkIter& operator++() noexcept {
+            _current_word &= _current_word - 1;
+            if (_current_word) {
+                _bit = static_cast<std::size_t>(
+                    std::countr_zero(_current_word)
+                );
+                return *this;
+            }
+            seek();
+            return *this;
+        }
+
+        void operator++(int) noexcept { ++*this; }
+
+        bool operator==(std::default_sentinel_t) const noexcept {
+            return _done;
+        }
+
+    private:
+        // advance to the next nonempty word and resolve its page base once
+        void seek() noexcept {
+            while (!_current_word) {
+                if (++_word_idx >= _total_words) {
+                    _done = true;
+                    return;
+                }
+                _current_word = _bitmap->word_at(_word_idx);
+            }
+            _wbase = _store->at(_word_idx * HierarchicalBitmap::word_bits);
+            _bit = static_cast<std::size_t>(std::countr_zero(_current_word));
+        }
+
+        const HierarchicalBitmap* _bitmap = nullptr;
+        Store* _store = nullptr;
+        T* _wbase = nullptr;
+        std::size_t _total_words = 0;
+        std::size_t _word_idx = 0;
+        std::size_t _bit = 0;
+        HierarchicalBitmap::word _current_word = 0;
+        bool _done = false;
+    };
+}

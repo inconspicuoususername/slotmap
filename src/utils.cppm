@@ -1,7 +1,7 @@
 module;
 #include <bit>
 #include <cstddef>
-export module slotmap:utils;
+export module slotmap.utils;
 
 namespace ic {
     // `std::pow` is not consteval so yeah thank you WG21
@@ -33,7 +33,7 @@ namespace ic {
             //prefill pointer
             0,
             // 0 = prepare for read
-            0 // 3 = prefill l1, l2, l3, 0 = prefill l1 and evict asap
+            3 // 3 = prefill l1, l2, l3, 0 = prefill l1 and evict asap
         );
 #else
         (void)p; //TODO: use msvc mm_prefetch

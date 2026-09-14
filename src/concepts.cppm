@@ -4,7 +4,7 @@ module;
 #include <cstddef>
 #include <optional>
 
-export module slotmap:policy;
+export module slotmap.concepts;
 
 namespace slotmap {
     // Bitmap and FreeList concept

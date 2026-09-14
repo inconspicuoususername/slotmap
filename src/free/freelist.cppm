@@ -5,7 +5,7 @@ module;
 #include <optional>
 #include <vector>
 
-export module slotmap:freelist;
+export module slotmap.free:freelist;
 
 namespace slotmap {
     // a (not yet(?) intrusive) free-list

@@ -9,11 +9,11 @@ module;
 export module slotmap:sparse;
 
 import :key;
-import :policy;
-import :bitmap;
-import :storage;
-import :iterator;
 import result;
+import slotmap.free;
+import slotmap.storage;
+import slotmap.concepts;
+import slotmap.iterators;
 
 namespace slotmap {
     export template <
@@ -35,11 +35,11 @@ namespace slotmap {
 
         using IteratorType = std::conditional_t<
             std::is_same_v<Iterator, void>,
-            StorageIteratorFast<T, Store<T> >,
+            PageWalkIter<T, Store<T> >,
             Iterator
         >;
 
-        static_assert(std::constructible_from<IteratorType, Store<T>&, Finder&>,
+        static_assert(std::constructible_from<IteratorType, Finder&, Store<T>&>,
                       "The provided Iterator type must be constructible from the required arguments.")
         ;
 
@@ -136,7 +136,7 @@ namespace slotmap {
         }
 
 
-        IteratorType begin() { return IteratorType{values_, free_}; }
+        IteratorType begin() { return IteratorType{free_, values_}; }
 
         [[nodiscard]] std::default_sentinel_t end() const noexcept {
             return std::default_sentinel;

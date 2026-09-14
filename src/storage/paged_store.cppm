@@ -7,7 +7,7 @@ module;
 #include <utility>
 #include <vector>
 
-export module slotmap:storage;
+export module slotmap.storage:paged_store;
 
 namespace slotmap {
     // Paged pool with fixed size pages

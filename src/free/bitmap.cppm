@@ -2,15 +2,14 @@ module;
 
 #include <array>
 #include <bit>
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
 #include <cassert>
 #include <cmath>
 
-export module slotmap:bitmap;
-import :utils;
+export module slotmap.free:bitmap;
+import slotmap.utils;
 
 namespace slotmap {
     // Hierarchical summary bitmap
