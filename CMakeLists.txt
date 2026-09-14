@@ -26,4 +26,11 @@ target_link_libraries(slotmap PUBLIC result::result)
 target_compile_features(slotmap PUBLIC cxx_std_26)
 
 add_subdirectory(demo)
-add_subdirectory(benchmarks)
+
+# Off by default: the benchmarks pull the reference slotmaps and Boost via
+# FetchContent (a large, one-time download), so opt in explicitly.
+option(SLOTMAP_BUILD_BENCHMARKS
+        "Build slotmap benchmarks (fetches reference slotmaps + Boost)" OFF)
+if (SLOTMAP_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif ()
