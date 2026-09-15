@@ -33,54 +33,72 @@ FetchContent_MakeAvailable(
         sporacid_slotmap sergeymakeev_slotmap twiggler_slotmap boost_headers)
 
 
-add_executable(slotmap-bench-internal)
+add_library(bench_common OBJECT)
 
-target_sources(slotmap-bench-internal
-        PRIVATE FILE_SET CXX_MODULES
-        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        FILES ${CMAKE_CURRENT_SOURCE_DIR}/internal/bench_internal.cppm)
+target_sources(bench_common
+        PUBLIC FILE_SET CXX_MODULES
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/common
+        FILES ${CMAKE_CURRENT_SOURCE_DIR}/common/adapters.cppm
+)
 
-target_include_directories(slotmap-bench-internal PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR})            # bench_common.hpp
-
-target_link_libraries(slotmap-bench-internal PRIVATE inco::slotmap)
-target_compile_features(slotmap-bench-internal PRIVATE cxx_std_26)
-target_compile_options(slotmap-bench-internal PRIVATE -O3 -march=native -DNDEBUG)
-
-
-add_executable(slotmap-bench-external)
-
-target_sources(slotmap-bench-external
-        PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/ext_refs.cpp
-        PRIVATE FILE_SET CXX_MODULES
-        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        FILES ${CMAKE_CURRENT_SOURCE_DIR}/external/bench_external.cppm)
-
-target_include_directories(slotmap-bench-external PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}                    # bench_common.hpp
-        ${sporacid_slotmap_SOURCE_DIR}/include         # sporacid  <spore/slot_map.hpp>
-        ${sergeymakeev_slotmap_SOURCE_DIR}/slot_map    # SergeyMakeev <slot_map.h>
-        ${twiggler_slotmap_SOURCE_DIR}/include         # twiggler  <slotmap/slotmap.hpp>
-        ${boost_headers_SOURCE_DIR})                   # <boost/...>
-
-target_link_libraries(slotmap-bench-external PRIVATE inco::slotmap)
-target_compile_features(slotmap-bench-external PRIVATE cxx_std_26)
-target_compile_options(slotmap-bench-external PRIVATE -O3 -march=native -DNDEBUG)
+target_include_directories(bench_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
+target_compile_features(bench_common PUBLIC cxx_std_26)
+target_compile_options(bench_common PUBLIC -O3 -march=native -DNDEBUG)
+target_link_libraries(bench_common PUBLIC inco::slotmap)
 
 
+add_library(bench_external_deps INTERFACE)
+target_include_directories(bench_external_deps INTERFACE
+        ${sporacid_slotmap_SOURCE_DIR}/include
+        ${sergeymakeev_slotmap_SOURCE_DIR}/slot_map
+        ${twiggler_slotmap_SOURCE_DIR}/include
+        ${boost_headers_SOURCE_DIR}
+)
 
+target_link_libraries(bench_common PRIVATE bench_external_deps)
 
-add_executable(slotmap-bench-perf)
+function(add_slotmap_benchmark TARGET_NAME)
+    cmake_parse_arguments(ARG "" "" "SOURCES;MODULES;DEPENDS;OPTIONS" ${ARGN})
+    add_executable(${TARGET_NAME})
 
-target_sources(slotmap-bench-perf
-        PRIVATE FILE_SET CXX_MODULES
-        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        FILES ${CMAKE_CURRENT_SOURCE_DIR}/internal/perf_churn.cppm)
+    if (ARG_SOURCES)
+        target_sources(${TARGET_NAME} PRIVATE ${ARG_SOURCES})
+    endif ()
 
-target_include_directories(slotmap-bench-perf PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR})            # bench_common.hpp
+    if (ARG_MODULES)
+        target_sources(${TARGET_NAME}
+                PRIVATE FILE_SET CXX_MODULES
+                BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+                FILES ${ARG_MODULES}
+        )
+    endif ()
 
-target_link_libraries(slotmap-bench-perf PRIVATE inco::slotmap)
-target_compile_features(slotmap-bench-perf PRIVATE cxx_std_26)
-target_compile_options(slotmap-bench-perf PRIVATE -O3 -march=native -DNDEBUG -g1)
+    target_link_libraries(${TARGET_NAME} PRIVATE
+            bench_common
+            ${ARG_DEPENDS}
+    )
+
+    if (ARG_OPTIONS)
+        target_compile_options(${TARGET_NAME} PRIVATE ${ARG_OPTIONS})
+    endif ()
+endfunction()
+
+add_slotmap_benchmark(slotmap-bench-internal
+        MODULES internal/bench_internal.cppm
+)
+
+add_slotmap_benchmark(slotmap-bench-external
+        MODULES external/bench_external.cppm
+        DEPENDS bench_external_deps
+)
+
+add_slotmap_benchmark(slotmap-bench-clean
+        MODULES external/cleanroom.cppm
+        DEPENDS bench_external_deps
+        OPTIONS -g1
+)
+
+add_slotmap_benchmark(slotmap-bench-perf
+        MODULES internal/perf_churn.cppm
+        OPTIONS -g1
+)

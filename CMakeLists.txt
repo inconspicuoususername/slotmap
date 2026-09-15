@@ -42,17 +42,3 @@ option(SLOTMAP_BUILD_BENCHMARKS
 if (SLOTMAP_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif ()
-
-option(SLOTMAP_BUILD_PERF
-        "Build the isolated insert/churn perf microbench" OFF)
-if (SLOTMAP_BUILD_PERF)
-    add_executable(slotmap-perf)
-    target_sources(slotmap-perf
-            PRIVATE FILE_SET CXX_MODULES
-            BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/internal
-            FILES ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/internal/perf_churn.cppm)
-    target_include_directories(slotmap-perf
-            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks)
-    target_link_libraries(slotmap-perf PRIVATE slotmap)
-    target_compile_features(slotmap-perf PRIVATE cxx_std_26)
-endif ()

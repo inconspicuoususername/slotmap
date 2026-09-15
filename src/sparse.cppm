@@ -22,7 +22,7 @@ namespace inco {
     export template <
         class T,
         class Tag = T,
-        class Finder = HierarchicalBitmap,
+        class Finder = LiveAllocBitmap,
         class SlotStorage = SplitStore<T>,
         class Iterator = void>
         requires FreeFinder<Finder> &&
@@ -51,12 +51,8 @@ namespace inco {
         template <class... Args>
         key_type emplace(Args&&... args) {
             std::size_t slot = free_.acquire();
-            if (slot == Finder::npos) {
-                const auto gg = get_growth_factor();
-                // std::cout << gg << "\n";
-                expand(gg);
-                slot = free_.acquire();
-
+            if (slot == Finder::npos) [[unlikely]] {
+                slot = grow_and_reacquire();
                 //we're screwed
                 if (slot == Finder::npos) return key_type{}; // invalid
             }
@@ -155,6 +151,12 @@ namespace inco {
         // TODO per-page rwlock on bitmap/version writes wit page dir
 
     private:
+        [[gnu::cold, gnu::noinline]]
+        std::size_t grow_and_reacquire() {
+            expand(get_growth_factor());
+            return free_.acquire();
+        }
+
         inline std::size_t get_growth_factor() const noexcept {
             // constexpr std::size_t max_growth_factor = 16;
             // const auto factor = ceil_div(size() + 1, SlotStorage::page_slots);

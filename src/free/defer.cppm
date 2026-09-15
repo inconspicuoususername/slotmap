@@ -152,20 +152,20 @@ namespace inco {
             _live.resize(ceil_div(slots, word_bits), 0);
         }
 
-        [[nodiscard]] std::size_t capacity() const noexcept {
+        [[nodiscard]] FORCE_INLINE std::size_t capacity() const noexcept {
             return _alloc.capacity();
         }
 
-        [[nodiscard]] word word_at(std::size_t index) const {
+        [[nodiscard]] FORCE_INLINE word word_at(std::size_t index) const {
             return _live[index];
         }
 
     private:
-        void set_live(std::size_t slot) noexcept {
+        FORCE_INLINE void set_live(std::size_t slot) noexcept {
             _live[slot / word_bits] |= (word{1} << (slot % word_bits));
         }
 
-        void clear_live(std::size_t slot) noexcept {
+        FORCE_INLINE void clear_live(std::size_t slot) noexcept {
             _live[slot / word_bits] &= ~(word{1} << (slot % word_bits));
         }
 

@@ -10,7 +10,8 @@ module;
 #include <random>
 #include <vector>
 
-#include "bench_common.hpp"
+#include "common.hpp"
+#include "op.hpp"
 
 export module bench_internal;
 
@@ -172,23 +173,32 @@ namespace {
             const std::uint64_t want = bench::expected_sum(p.stride);
 
             bench::check("baseline", want, iter_baseline<T>(f));
-            bench::check("PageWalkIter", want,
+            bench::check("PageWalkIter",
+                         want,
                          iter_drive<PageWalkIter<T, Store<T> >, T>(f));
 
             bench::print_row(
-                "baseline (no prefetch)", p.name, elem,
+                "baseline (no prefetch)",
+                p.name,
+                elem,
                 bench::run(bench::N, [&] { return iter_baseline<T>(f); }));
             bench::print_row(
-                "PageWalkIter", p.name, elem,
-                bench::run(bench::N, [&] {
-                    return iter_drive<PageWalkIter<T, Store<T> >, T>(f);
-                }));
+                "PageWalkIter",
+                p.name,
+                elem,
+                bench::run(bench::N,
+                           [&] {
+                               return iter_drive<PageWalkIter<T, Store<T> >, T>(
+                                   f);
+                           }));
 
             inco::SparseSlotMap<T> m;
             build_sparse<T>(m, bench::N, p.stride);
             bench::check("SparseSlotMap", want, iter_sparse<T>(m));
             bench::print_row(
-                "SparseSlotMap range-for", p.name, elem,
+                "SparseSlotMap range-for",
+                p.name,
+                elem,
                 bench::run(bench::N, [&] { return iter_sparse<T>(m); }));
         }
     }
@@ -201,24 +211,36 @@ namespace {
             f.build(bench::N, p.stride);
             const std::uint64_t want = bench::expected_sum(p.stride);
 
-            bench::check("BitWalkIter", want,
+            bench::check("BitWalkIter",
+                         want,
                          iter_drive<BitWalkIter<T, Store<T> >, T>(f));
-            bench::check("PageWalkIter", want,
+            bench::check("PageWalkIter",
+                         want,
                          iter_drive<PageWalkIter<T, Store<T> >, T>(f));
 
             bench::print_row(
-                "baseline (loop, no pf)", p.name, elem,
+                "baseline (loop, no pf)",
+                p.name,
+                elem,
                 bench::run(bench::N, [&] { return iter_baseline<T>(f); }));
             bench::print_row(
-                "BitWalkIter", p.name, elem,
-                bench::run(bench::N, [&] {
-                    return iter_drive<BitWalkIter<T, Store<T> >, T>(f);
-                }));
+                "BitWalkIter",
+                p.name,
+                elem,
+                bench::run(bench::N,
+                           [&] {
+                               return iter_drive<BitWalkIter<T, Store<T> >, T>(
+                                   f);
+                           }));
             bench::print_row(
-                "PageWalkIter", p.name, elem,
-                bench::run(bench::N, [&] {
-                    return iter_drive<PageWalkIter<T, Store<T> >, T>(f);
-                }));
+                "PageWalkIter",
+                p.name,
+                elem,
+                bench::run(bench::N,
+                           [&] {
+                               return iter_drive<PageWalkIter<T, Store<T> >, T>(
+                                   f);
+                           }));
         }
     }
 
@@ -270,42 +292,59 @@ namespace {
         const auto idx = decode_indices(f);
 
         std::printf("  [nightmare: live=%zu span=%zu words_touched~=%zu]\n",
-                    idx.size(), bench::N * spread,
+                    idx.size(),
+                    bench::N * spread,
                     idx.empty() ? 0 : (idx.back() / 64) + 1);
         std::fflush(stdout);
 
         bench::check("flat D=0", want, flat_prefetch<0, 3>(f, idx));
         bench::check("flat D=32", want, flat_prefetch<32, 3>(f, idx));
-        bench::check("PageWalkIter", want,
+        bench::check("PageWalkIter",
+                     want,
                      iter_drive<PageWalkIter<T, Store<T> >, T>(f));
 
         bench::print_row(
-            "flat baseline (D=0)", "nightmare", elem,
+            "flat baseline (D=0)",
+            "nightmare",
+            elem,
             bench::run(bench::N, [&] { return flat_prefetch<0, 3>(f, idx); }));
         bench::print_row(
-            "flat prefetch D=16 (t0)", "nightmare", elem,
+            "flat prefetch D=16 (t0)",
+            "nightmare",
+            elem,
             bench::run(bench::N, [&] { return flat_prefetch<16, 3>(f, idx); }));
         bench::print_row(
-            "flat prefetch D=32 (t0)", "nightmare", elem,
+            "flat prefetch D=32 (t0)",
+            "nightmare",
+            elem,
             bench::run(bench::N, [&] { return flat_prefetch<32, 3>(f, idx); }));
         bench::print_row(
-            "flat prefetch D=64 (t0)", "nightmare", elem,
+            "flat prefetch D=64 (t0)",
+            "nightmare",
+            elem,
             bench::run(bench::N, [&] { return flat_prefetch<64, 3>(f, idx); }));
         bench::print_row(
-            "flat prefetch D=32 (nta)", "nightmare", elem,
+            "flat prefetch D=32 (nta)",
+            "nightmare",
+            elem,
             bench::run(bench::N, [&] { return flat_prefetch<32, 0>(f, idx); }));
         bench::print_row(
-            "PageWalkIter (no pf)", "nightmare", elem,
-            bench::run(bench::N, [&] {
-                return iter_drive<PageWalkIter<T, Store<T> >, T>(f);
-            }));
+            "PageWalkIter (no pf)",
+            "nightmare",
+            elem,
+            bench::run(bench::N,
+                       [&] {
+                           return iter_drive<PageWalkIter<T, Store<T> >, T>(f);
+                       }));
     }
 }
 
 extern "C++" int main() {
     std::printf(
         "slotmap internal (iterator) benchmark  (N=%zu live, warmup=%d reps=%d)\n",
-        bench::N, bench::WARMUP, bench::REPS);
+        bench::N,
+        bench::WARMUP,
+        bench::REPS);
     std::printf("sizeof(Payload64)=%zu  min wall time over reps\n",
                 sizeof(Payload64));
 
@@ -319,9 +358,11 @@ extern "C++" int main() {
     bench::print_header("iterator family (Payload64, memory-bound)");
     run_iterators<Payload64>("P64");
 
-    bench::print_header("NIGHTMARE scatter, prefetch-distance sweep (P64, spread=8)");
+    bench::print_header(
+        "NIGHTMARE scatter, prefetch-distance sweep (P64, spread=8)");
     run_nightmare<Payload64>("P64", 8);
-    bench::print_header("NIGHTMARE scatter, prefetch-distance sweep (P64, spread=16)");
+    bench::print_header(
+        "NIGHTMARE scatter, prefetch-distance sweep (P64, spread=16)");
     run_nightmare<Payload64>("P64", 16);
 
     std::printf("\n[sink=%llu]\n",

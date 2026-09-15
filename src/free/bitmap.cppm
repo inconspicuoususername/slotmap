@@ -108,8 +108,8 @@ namespace inco {
                         // if child is full, set corresponding parent bit to 1
                         if (get_word(child_level, j) == full)
                             set_word_bit(level, j / word_bits, j % word_bits);
-                            // _levels[l][j / word_bits] |= (
-                            //     word{1} << (j % word_bits));
+                    // _levels[l][j / word_bits] |= (
+                    //     word{1} << (j % word_bits));
                     _depth = level + 1;
                 }
                 child_words = need;
@@ -117,11 +117,11 @@ namespace inco {
             _capacity = slots;
         }
 
-        [[nodiscard]] std::size_t capacity() const noexcept {
+        [[nodiscard]] FORCE_INLINE std::size_t capacity() const noexcept {
             return _capacity;
         }
 
-        [[nodiscard]] word word_at(const word_index index) const {
+        [[nodiscard]] FORCE_INLINE word word_at(const word_index index) const {
             return get_word(LEAF_LEVEL, index);
         }
 
@@ -169,7 +169,9 @@ namespace inco {
             const slot_index bit_offset = bit_slot % word_bits;
 
             set_word_bit(LEAF_LEVEL, word_index, bit_offset);
-            if (get_word(LEAF_LEVEL, word_index) == full) propagate_full_up(word_index);
+            if (get_word(LEAF_LEVEL, word_index) == full)
+                propagate_full_up(
+                    word_index);
 
             return bit_slot;
         }
@@ -179,7 +181,8 @@ namespace inco {
         // also the div and rem are one op on x86
 
         FORCE_INLINE
-        void set_word_bit(const std::size_t level, const word_index index, const slot_index bit_offset) noexcept {
+        void set_word_bit(const std::size_t level, const word_index index,
+                          const slot_index bit_offset) noexcept {
             _levels[level][index] |=
                 (word{1} << (bit_offset));
         }
@@ -200,10 +203,11 @@ namespace inco {
         }
 
         FORCE_INLINE
-        void clear_word_bit(const std::size_t level, const word_index index, const slot_index bit_offset) {
+        void clear_word_bit(const std::size_t level, const word_index index,
+                            const slot_index bit_offset) {
             _levels[level][index] &= ~(
                 word{1} << (bit_offset)
-                );
+            );
         }
 
         // [[nodiscard]] [[gnu::always_inline]]
@@ -212,7 +216,8 @@ namespace inco {
         // }
 
         [[nodiscard]] FORCE_INLINE
-        word get_word(const std::size_t level, const word_index word) const noexcept {
+        word get_word(const std::size_t level,
+                      const word_index word) const noexcept {
             return _levels[level][word];
         }
 
@@ -221,18 +226,16 @@ namespace inco {
         // friend struct HierarchicalBitmapIterator;
 
         // propagate full status to parents
+        [[gnu::cold, gnu::noinline]]
         void propagate_full_up(word_index child_word_index) noexcept {
             for (std::size_t level = 1; level < _depth; ++level) {
                 const word_index parent_word_index =
                     child_word_index / word_bits;
-                const slot_index parent_bit_offset = child_word_index % word_bits;
+                const slot_index parent_bit_offset =
+                    child_word_index % word_bits;
 
                 // set parent to high on child bit
-                // _levels[l][parent_word_index] |= (
-                //     word{1} << (child_word_index % word_bits)
-                // );
                 set_word_bit(level, parent_word_index, parent_bit_offset);
-
 
                 // if parent is not full, end
                 if (get_word(level, parent_word_index) != full) break;
@@ -241,6 +244,7 @@ namespace inco {
         }
 
         // propagate no longer full status up to parents
+        [[gnu::cold, gnu::noinline]]
         void propagate_clear_up(word_index child_word_idx) noexcept {
             for (std::size_t level = 1; level < _depth; ++level) {
                 const word_index parent_word_idx = child_word_idx / word_bits;
@@ -249,10 +253,9 @@ namespace inco {
                 );
 
                 // AND self with only child bit undone
-                // _levels[l][parent_word_idx] &= ~(
-                //     word{1} << (child_word_idx % word_bits)
-                // );
-                clear_word_bit(level, parent_word_idx, child_word_idx % word_bits);
+                clear_word_bit(level,
+                               parent_word_idx,
+                               child_word_idx % word_bits);
 
                 // only continue if self was full (meaning parent marked full)
                 if (!parent_was_full) break;
