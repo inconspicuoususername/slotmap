@@ -22,15 +22,37 @@ target_sources(slotmap
         ${out_CPP_MODULE_SOURCES}
 )
 
+target_sources(slotmap
+        PUBLIC
+        FILE_SET header_set
+        TYPE HEADERS
+        FILES
+        "src/macros.h"
+)
+
 target_link_libraries(slotmap PUBLIC result::result)
 target_compile_features(slotmap PUBLIC cxx_std_26)
 
+set_target_properties(slotmap PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
+
 add_subdirectory(demo)
 
-# Off by default: the benchmarks pull the reference slotmaps and Boost via
-# FetchContent (a large, one-time download), so opt in explicitly.
 option(SLOTMAP_BUILD_BENCHMARKS
         "Build slotmap benchmarks (fetches reference slotmaps + Boost)" OFF)
 if (SLOTMAP_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
+endif ()
+
+option(SLOTMAP_BUILD_PERF
+        "Build the isolated insert/churn perf microbench" OFF)
+if (SLOTMAP_BUILD_PERF)
+    add_executable(slotmap-perf)
+    target_sources(slotmap-perf
+            PRIVATE FILE_SET CXX_MODULES
+            BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/internal
+            FILES ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/internal/perf_churn.cppm)
+    target_include_directories(slotmap-perf
+            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks)
+    target_link_libraries(slotmap-perf PRIVATE slotmap)
+    target_compile_features(slotmap-perf PRIVATE cxx_std_26)
 endif ()

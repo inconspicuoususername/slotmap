@@ -13,8 +13,8 @@ namespace inco {
     // call and then indexed by bit.
     //
     // Requires page_slots % word_bits == 0 so a word is at the very least one page
-    export template<class T, class Store>
-        requires Storage<Store, T>
+    export template<class T, class Store, class Finder = HierarchicalBitmap>
+        requires Storage<Store, T> && LiveBitmapView<Finder>
     class PageWalkIter {
     public:
         using entry = SlotMapIteratorEntry<T>;
@@ -25,22 +25,22 @@ namespace inco {
         using iterator_concept = std::input_iterator_tag;
 
         static_assert(
-            Store::page_slots % HierarchicalBitmap::word_bits == 0,
+            Store::page_slots % Finder::word_bits == 0,
             "PageWalkIter requires each leaf word's slots to fit in one page");
 
         PageWalkIter() = default;
 
-        PageWalkIter(const HierarchicalBitmap &bm, Store &store) noexcept
+        PageWalkIter(const Finder &bm, Store &store) noexcept
             : _bitmap(&bm), _store(&store),
               _total_words(ceil_div(bm.capacity(),
-                                    HierarchicalBitmap::word_bits)) {
+                                    Finder::word_bits)) {
             if (_total_words) _current_word = bm.word_at(0);
             seek();
         }
 
         entry operator*() const noexcept {
             const std::size_t idx =
-                    _word_idx * HierarchicalBitmap::word_bits + _bit;
+                    _word_idx * Finder::word_bits + _bit;
             return entry{
                 .index = idx,
                 .value = _wbase[_bit]
@@ -75,17 +75,17 @@ namespace inco {
                 }
                 _current_word = _bitmap->word_at(_word_idx);
             }
-            _wbase = _store->at(_word_idx * HierarchicalBitmap::word_bits);
+            _wbase = _store->at(_word_idx * Finder::word_bits);
             _bit = static_cast<std::size_t>(std::countr_zero(_current_word));
         }
 
-        const HierarchicalBitmap *_bitmap = nullptr;
+        const Finder *_bitmap = nullptr;
         Store *_store = nullptr;
         T *_wbase = nullptr;
         std::size_t _total_words = 0;
         std::size_t _word_idx = 0;
         std::size_t _bit = 0;
-        HierarchicalBitmap::word _current_word = 0;
+        typename Finder::word _current_word = 0;
         bool _done = false;
     };
 }

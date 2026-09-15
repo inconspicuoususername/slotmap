@@ -2,7 +2,6 @@ module;
 
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <vector>
 
 export module slotmap.free:freelist;
@@ -21,10 +20,11 @@ namespace inco {
     export class FreeList {
     public:
         static constexpr std::size_t nil = static_cast<std::size_t>(-1);
+        static constexpr std::size_t npos = nil;
 
-        [[nodiscard]] std::optional<std::size_t> acquire() noexcept {
+        [[nodiscard]] std::size_t acquire() noexcept {
             // if freelist is empty, caller needs to grow it
-            if (head_ == nil) return std::nullopt;
+            if (head_ == nil) return npos;
 
             //get top free index
             const std::size_t i = head_;

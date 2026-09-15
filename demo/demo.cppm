@@ -5,7 +5,7 @@ export module main;
 import slotmap;
 
 extern "C++" int main() {
-    slotmap::SparseSlotMap<std::uint32_t> slot_map;
+    inco::SparseSlotMap<std::uint32_t> slot_map;
 
     slot_map.reserve(192);
 

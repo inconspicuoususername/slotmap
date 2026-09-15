@@ -1,9 +1,11 @@
 module;
 
+#include <algorithm>
 #include <cassert>
-#include <cstddef>
+#include <cmath>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <utility>
 
 export module slotmap:sparse;
@@ -14,16 +16,17 @@ import slotmap.free;
 import slotmap.storage;
 import slotmap.concepts;
 import slotmap.iterators;
+import slotmap.utils;
 
 namespace inco {
     export template <
         class T,
         class Tag = T,
         class Finder = HierarchicalBitmap,
-        template <class> class Store = PagedStore,
+        class SlotStorage = SplitStore<T>,
         class Iterator = void>
         requires FreeFinder<Finder> &&
-                 Storage<Store<T>, T>
+                 Storage<SlotStorage, T>
 
     class SparseSlotMap {
     public:
@@ -35,61 +38,69 @@ namespace inco {
 
         using IteratorType = std::conditional_t<
             std::is_same_v<Iterator, void>,
-            PageWalkIter<T, Store<T> >,
+            PageWalkIter<T, SlotStorage, Finder>,
             Iterator
         >;
 
-        static_assert(std::constructible_from<IteratorType, Finder&, Store<T>&>,
-                      "The provided Iterator type must be constructible from the required arguments.")
+        static_assert(
+            std::constructible_from<IteratorType, Finder&, SlotStorage&>,
+            "The provided Iterator type must be constructible from the required arguments.")
         ;
 
+
         template <class... Args>
-        result::Result<key_type> try_emplace(Args&&... args) {
-            auto slot = free_.acquire();
-            if (!slot) {
-                // when out of capacity, grow one page and retry
-                const std::size_t next = Store<T>::page_slots;
-                expand(next);
+        key_type emplace(Args&&... args) {
+            std::size_t slot = free_.acquire();
+            if (slot == Finder::npos) {
+                const auto gg = get_growth_factor();
+                // std::cout << gg << "\n";
+                expand(gg);
                 slot = free_.acquire();
 
                 //we're screwed
-                if (!slot)
-                    return result::fail("index space exhausted");
+                if (slot == Finder::npos) return key_type{}; // invalid
             }
-            const std::size_t idx = *slot;
+            const std::size_t idx = slot;
 
             // get version of idx
-            version_t v = *versions_.at(idx);
+            version_t v = *store_.version_at(idx);
             // if first time, create it for the first time
             if (v == 0) {
                 v = 1;
-                *versions_.at(idx) = 1;
+                *store_.version_at(idx) = 1;
             }
             // then construct with forward
-            values_.construct(idx, std::forward<Args>(args)...);
+            store_.construct(idx, std::forward<Args>(args)...);
             ++size_;
             return key_type::make(
                 static_cast<typename key_type::underlying>(idx),
                 v);
         }
 
+        template <class... Args>
+        result::Result<key_type> try_emplace(Args&&... args) {
+            key_type k = emplace(std::forward<Args>(args)...);
+            if (!k.valid()) return result::fail("index space exhausted");
+            return k;
+        }
+
         // Fast find lookup
         [[nodiscard]] T* find(key_type k) noexcept {
             const auto idx = static_cast<std::size_t>(k.index());
-            if (!k.valid() || idx >= versions_.capacity()) return nullptr;
+            if (!k.valid() || idx >= store_.capacity()) return nullptr;
 
-            if (const version_t stored = *versions_.at(idx);
+            if (const version_t stored = *store_.version_at(idx);
                 stored != static_cast<version_t>(k.version())) {
 #ifdef IC_SLOTMAP_DEBUG
                 assert(
                     !(k.valid() && stored > static_cast<version_t>(k.version())
                         + 1u
-                        && "stale handle held across too many version bumps in slotmap"
+                        && "key held across too many version bumps in slotmap"
                     ));
 #endif
                 return nullptr;
             }
-            return values_.at(idx);
+            return store_.at(idx);
         }
 
         // const ver
@@ -107,9 +118,9 @@ namespace inco {
             T* p = find(k);
             if (!p) return false;
             const std::size_t idx = static_cast<std::size_t>(k.index());
-            values_.destroy(idx);
+            store_.destroy(idx);
             // invalidate every outstanding key to this slot
-            ++*versions_.at(idx);
+            ++*store_.version_at(idx);
             free_.release(idx);
             --size_;
             return true;
@@ -124,8 +135,7 @@ namespace inco {
 
         // reserve at least N elements
         void reserve(std::size_t size) noexcept {
-            values_.ensure(size);
-            versions_.ensure(size);
+            store_.ensure(size);
             free_.grow(size);
         }
 
@@ -136,7 +146,7 @@ namespace inco {
         }
 
 
-        IteratorType begin() { return IteratorType{free_, values_}; }
+        IteratorType begin() { return IteratorType{free_, store_}; }
 
         [[nodiscard]] std::default_sentinel_t end() const noexcept {
             return std::default_sentinel;
@@ -145,9 +155,17 @@ namespace inco {
         // TODO per-page rwlock on bitmap/version writes wit page dir
 
     private:
+        inline std::size_t get_growth_factor() const noexcept {
+            // constexpr std::size_t max_growth_factor = 16;
+            // const auto factor = ceil_div(size() + 1, SlotStorage::page_slots);
+            // // std::cout << " Factor " << factor << "\n";
+            // const auto growth_factor =  std::min(factor * factor, max_growth_factor);
+            constexpr auto growth_factor = 1;
+            return SlotStorage::page_slots * growth_factor;
+        }
+
         Finder free_{};
-        Store<T> values_{};
-        Store<version_t> versions_{};
+        SlotStorage store_{};
         std::size_t size_ = 0;
     };
 }

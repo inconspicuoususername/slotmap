@@ -1,44 +1,56 @@
 module;
 #include <bit>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <utility>
 #include <vector>
-export module slotmap.storage:paged_store;
+export module slotmap.storage:soa_store;
 import slotmap.utils;
 
 namespace inco {
-    // Paged pool with fixed size pages
-    //store is pointer stable, since pages are not moved after allocation
-    // would have used boost deque but it default constructs on resize
-    // also iirc neither boost deque nor segmented vector or std deque use pow 2 indexing
+    // TODO subclass paged instead of CTRL + C
     export template <
         class T,
+        class V = std::uint32_t,
         std::size_t BytesPerPage = 16 * 1024,
         std::size_t MinSlots = 32
     >
-    class PagedStore {
+    class SoAStore {
     public:
-        // number of T slots per page
+        using value_type = T;
+        using version_type = V;
         static constexpr std::size_t page_slots = get_page_slots<T>(
             BytesPerPage,
             MinSlots
         );
 
-        // allows the implementation to avoid doing i / page_slots
         static constexpr std::size_t page_shift = std::countr_zero(page_slots);
         static constexpr std::size_t page_mask = page_slots - 1;
 
+        static constexpr std::size_t values_bytes = page_slots * sizeof(T);
+        static constexpr std::size_t versions_off =
+            (values_bytes + alignof(V) - 1) & ~(alignof(V) - 1);
+        static constexpr std::size_t page_bytes =
+            versions_off + page_slots * sizeof(V);
+
         [[nodiscard]] T* at(const std::size_t i) noexcept {
-            return slot_ptr(i >> page_shift, i & page_mask);
+            return value_base(i >> page_shift) + (i & page_mask);
         }
 
         [[nodiscard]] const T* at(const std::size_t i) const noexcept {
-            return const_cast<PagedStore*>(this)->at(i);
+            return const_cast<SoAStore*>(this)->at(i);
         }
 
-        // alloc up to cap - 1 total capacity
+        [[nodiscard]] V* version_at(const std::size_t i) noexcept {
+            return version_base(i >> page_shift) + (i & page_mask);
+        }
+
+        [[nodiscard]] const V* version_at(const std::size_t i) const noexcept {
+            return const_cast<SoAStore*>(this)->version_at(i);
+        }
+
         void ensure(const std::size_t cap) {
             const std::size_t want_pages = (cap + page_slots - 1) >> page_shift;
             while (pages_.size() < want_pages)
@@ -51,10 +63,9 @@ namespace inco {
 
         template <class... Args>
         T* construct(const std::size_t i, Args&&... args) {
-            // page cache idea
             const std::size_t pg = i >> page_shift;
             if (pg != _hot_page) {
-                _hot_base = reinterpret_cast<T*>(pages_[pg]->bytes);
+                _hot_base = value_base(pg);
                 _hot_page = pg;
             }
             return std::construct_at(_hot_base + (i & page_mask),
@@ -64,8 +75,14 @@ namespace inco {
         void destroy(const std::size_t i) noexcept { std::destroy_at(at(i)); }
 
     private:
-        struct Page {
-            alignas(T) std::byte bytes[page_slots * sizeof(T)];
+        // over-align to a cache line: with the odd (values+versions) page size,
+        // plain alignof(T) can land values off a 64B boundary and make every
+        // Payload64 straddle two lines, which wrecks iteration.
+        static constexpr std::size_t page_align =
+            alignof(T) > 64 ? alignof(T) : 64;
+
+        struct alignas(page_align) Page {
+            alignas(T) std::byte bytes[page_bytes];
         };
 
         static std::unique_ptr<Page> make_zeroed_page() {
@@ -74,8 +91,12 @@ namespace inco {
             return p;
         }
 
-        T* slot_ptr(std::size_t page, std::size_t off) noexcept {
-            return reinterpret_cast<T*>(pages_[page]->bytes) + off;
+        T* value_base(std::size_t page) noexcept {
+            return reinterpret_cast<T*>(pages_[page]->bytes);
+        }
+
+        V* version_base(std::size_t page) noexcept {
+            return reinterpret_cast<V*>(pages_[page]->bytes + versions_off);
         }
 
         std::vector<std::unique_ptr<Page> > pages_{};

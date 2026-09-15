@@ -1,4 +1,5 @@
 module;
+#include <algorithm>
 #include <bit>
 #include <cstddef>
 export module slotmap.utils;
@@ -38,5 +39,22 @@ namespace inco {
 #else
         (void)p; //TODO: use msvc mm_prefetch
 #endif
+    }
+
+    export template <class T>
+    consteval std::size_t get_page_slots(
+        const std::size_t bytes_per_page,
+        const std::size_t min_slots
+    ) {
+        const auto element_size = sizeof(T) ? sizeof(T) : 1;
+
+        // either clamp to min slots or use the total bytes
+        std::size_t number_slots = std::max(
+            bytes_per_page / element_size,
+            min_slots
+        );
+
+        // use a pow 2 page sloot number
+        return std::bit_floor(number_slots);
     }
 }

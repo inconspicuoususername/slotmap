@@ -29,13 +29,13 @@ namespace {
     constexpr std::size_t MS = 32;
 
     template <class T>
-    using Store = slotmap::PagedStore<T, PB, MS>;
+    using Store = inco::PagedStore<T, PB, MS>;
 
     // A bitmap + paged store filled directly, bypassing SparseSlotMap so every
     // iterator consumes the exact same physical layout.
     template <class T>
     struct Fixture {
-        slotmap::HierarchicalBitmap bm;
+        inco::HierarchicalBitmap bm;
         Store<T> store;
 
         // stride = 1 packed, 2 = 50%, 4 = 25%. Insert live*stride front-loaded,
@@ -65,7 +65,7 @@ namespace {
         std::uint64_t build_nightmare(std::size_t live, std::size_t spread,
                                       std::uint64_t seed) {
             const std::size_t M = live * spread;
-            const std::size_t num_words = ic::ceil_div(M, 64);
+            const std::size_t num_words = inco::ceil_div(M, 64);
             bm.grow(M);
             store.ensure(M);
             for (std::size_t i = 0; i < M; ++i) {
@@ -112,7 +112,7 @@ namespace {
     template <class T>
     std::uint64_t iter_baseline(Fixture<T>& f) {
         std::uint64_t sum = 0;
-        const std::size_t words = ic::ceil_div(f.bm.capacity(), 64);
+        const std::size_t words = inco::ceil_div(f.bm.capacity(), 64);
         for (std::size_t w = 0; w < words; ++w) {
             auto word = f.bm.word_at(w);
             while (word) {
@@ -134,16 +134,16 @@ namespace {
         return sum;
     }
 
-    using slotmap::BitWalkIter;
-    using slotmap::PageWalkIter;
+    using inco::BitWalkIter;
+    using inco::PageWalkIter;
 
     // The integrated public path: SparseSlotMap range-for (returns PageWalkIter).
     template <class T>
-    void build_sparse(slotmap::SparseSlotMap<T>& m,
+    void build_sparse(inco::SparseSlotMap<T>& m,
                       std::size_t live, std::size_t stride) {
         const std::size_t M = live * stride;
         m.reserve(M);
-        std::vector<typename slotmap::SparseSlotMap<T>::key_type> keys;
+        std::vector<typename inco::SparseSlotMap<T>::key_type> keys;
         keys.reserve(M);
         for (std::size_t i = 0; i < M; ++i)
             keys.push_back(m.try_emplace(make_val<T>(i)).value());
@@ -153,7 +153,7 @@ namespace {
     }
 
     template <class T>
-    std::uint64_t iter_sparse(slotmap::SparseSlotMap<T>& m) {
+    std::uint64_t iter_sparse(inco::SparseSlotMap<T>& m) {
         std::uint64_t sum = 0;
         for (auto&& e : m) sum += sum_val(e.value);
         return sum;
@@ -184,7 +184,7 @@ namespace {
                     return iter_drive<PageWalkIter<T, Store<T> >, T>(f);
                 }));
 
-            slotmap::SparseSlotMap<T> m;
+            inco::SparseSlotMap<T> m;
             build_sparse<T>(m, bench::N, p.stride);
             bench::check("SparseSlotMap", want, iter_sparse<T>(m));
             bench::print_row(
@@ -227,7 +227,7 @@ namespace {
     template <class T>
     std::vector<std::uint32_t> decode_indices(Fixture<T>& f) {
         std::vector<std::uint32_t> v;
-        const std::size_t words = ic::ceil_div(f.bm.capacity(), 64);
+        const std::size_t words = inco::ceil_div(f.bm.capacity(), 64);
         for (std::size_t w = 0; w < words; ++w) {
             auto word = f.bm.word_at(w);
             while (word) {

@@ -43,7 +43,7 @@ target_sources(slotmap-bench-internal
 target_include_directories(slotmap-bench-internal PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR})            # bench_common.hpp
 
-target_link_libraries(slotmap-bench-internal PRIVATE ic::slotmap)
+target_link_libraries(slotmap-bench-internal PRIVATE inco::slotmap)
 target_compile_features(slotmap-bench-internal PRIVATE cxx_std_26)
 target_compile_options(slotmap-bench-internal PRIVATE -O3 -march=native -DNDEBUG)
 
@@ -64,6 +64,23 @@ target_include_directories(slotmap-bench-external PRIVATE
         ${twiggler_slotmap_SOURCE_DIR}/include         # twiggler  <slotmap/slotmap.hpp>
         ${boost_headers_SOURCE_DIR})                   # <boost/...>
 
-target_link_libraries(slotmap-bench-external PRIVATE ic::slotmap)
+target_link_libraries(slotmap-bench-external PRIVATE inco::slotmap)
 target_compile_features(slotmap-bench-external PRIVATE cxx_std_26)
 target_compile_options(slotmap-bench-external PRIVATE -O3 -march=native -DNDEBUG)
+
+
+
+
+add_executable(slotmap-bench-perf)
+
+target_sources(slotmap-bench-perf
+        PRIVATE FILE_SET CXX_MODULES
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+        FILES ${CMAKE_CURRENT_SOURCE_DIR}/internal/perf_churn.cppm)
+
+target_include_directories(slotmap-bench-perf PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR})            # bench_common.hpp
+
+target_link_libraries(slotmap-bench-perf PRIVATE inco::slotmap)
+target_compile_features(slotmap-bench-perf PRIVATE cxx_std_26)
+target_compile_options(slotmap-bench-perf PRIVATE -O3 -march=native -DNDEBUG -g1)

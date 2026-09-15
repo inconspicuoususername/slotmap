@@ -12,8 +12,8 @@ namespace inco {
     // Identitcal to the page walk iterator
     // walk but PageWalk does the page lookup once per word (a word's 64 slots share one
     // page), so its faster in iteration
-    export template<class T, class Store>
-        requires Storage<Store, T>
+    export template<class T, class Store, class Finder = HierarchicalBitmap>
+        requires Storage<Store, T> && LiveBitmapView<Finder>
     class BitWalkIter {
     public:
         using entry = SlotMapIteratorEntry<T>;
@@ -25,10 +25,10 @@ namespace inco {
 
         BitWalkIter() = default;
 
-        BitWalkIter(const HierarchicalBitmap &bm, Store &store) noexcept
+        BitWalkIter(const Finder &bm, Store &store) noexcept
             : _bitmap(&bm), _store(&store),
               _total_words(ceil_div(bm.capacity(),
-                                    HierarchicalBitmap::word_bits)) {
+                                    Finder::word_bits)) {
             if (_total_words) _current_word = bm.word_at(0);
             seek();
         }
@@ -58,16 +58,16 @@ namespace inco {
                 }
                 _current_word = _bitmap->word_at(_word_idx);
             }
-            _cur = _word_idx * HierarchicalBitmap::word_bits +
+            _cur = _word_idx * Finder::word_bits +
                    static_cast<std::size_t>(std::countr_zero(_current_word));
         }
 
-        const HierarchicalBitmap *_bitmap = nullptr;
+        const Finder *_bitmap = nullptr;
         Store *_store = nullptr;
         std::size_t _total_words = 0;
         std::size_t _word_idx = 0;
         std::size_t _cur = 0;
-        HierarchicalBitmap::word _current_word = 0;
+        typename Finder::word _current_word = 0;
         bool _done = false;
     };
 }
