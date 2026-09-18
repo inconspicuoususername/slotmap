@@ -6,10 +6,6 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif ()
 
-if (NOT TARGET result::result)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../result ${CMAKE_BINARY_DIR}/result)
-endif ()
-
 add_library(slotmap STATIC)
 add_library(inco::slotmap ALIAS slotmap)
 
@@ -30,15 +26,20 @@ target_sources(slotmap
         "src/macros.h"
 )
 
-target_link_libraries(slotmap PUBLIC result::result)
 target_compile_features(slotmap PUBLIC cxx_std_26)
 
 set_target_properties(slotmap PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
 
-add_subdirectory(demo)
 
 option(SLOTMAP_BUILD_BENCHMARKS
         "Build slotmap benchmarks (fetches reference slotmaps + Boost)" OFF)
 if (SLOTMAP_BUILD_BENCHMARKS)
+    target_compile_definitions(slotmap PRIVATE SLOTMAP_EXPERIMENTS)
     add_subdirectory(benchmarks)
 endif ()
+
+option(SLOTMAP_BUILD_DEMO "Build demo" ON)
+if (SLOTMAP_BUILD_DEMO)
+    add_subdirectory(demo)
+endif()
+

@@ -5,9 +5,9 @@ module;
 #include <cstring>
 #include <utility>
 #include <vector>
-export module slotmap.storage:soa_store;
-import slotmap.utils;
-import :page_pool;
+export module slotmap:storage.soa_store;
+import :utils;
+import :storage.page_pool;
 
 namespace inco {
     // TODO subclass paged instead of CTRL + C
@@ -21,7 +21,7 @@ namespace inco {
     public:
         using value_type = T;
         using version_type = V;
-        static constexpr std::size_t page_slots = get_page_slots<T>(
+        static constexpr std::size_t page_slots = utils::get_page_slots<T>(
             BytesPerPage,
             MinSlots
         );

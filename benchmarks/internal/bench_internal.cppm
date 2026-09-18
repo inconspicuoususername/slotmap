@@ -16,10 +16,6 @@ module;
 export module bench_internal;
 
 import slotmap;
-import slotmap.utils;
-import slotmap.free;
-import slotmap.storage;
-import slotmap.iterators;
 
 using bench::Payload64;
 using bench::make_val;
@@ -66,7 +62,7 @@ namespace {
         std::uint64_t build_nightmare(std::size_t live, std::size_t spread,
                                       std::uint64_t seed) {
             const std::size_t M = live * spread;
-            const std::size_t num_words = inco::ceil_div(M, 64);
+            const std::size_t num_words = inco::utils::ceil_div(M, 64);
             bm.grow(M);
             store.ensure(M);
             for (std::size_t i = 0; i < M; ++i) {
@@ -113,7 +109,7 @@ namespace {
     template <class T>
     std::uint64_t iter_baseline(Fixture<T>& f) {
         std::uint64_t sum = 0;
-        const std::size_t words = inco::ceil_div(f.bm.capacity(), 64);
+        const std::size_t words = inco::utils::ceil_div(f.bm.capacity(), 64);
         for (std::size_t w = 0; w < words; ++w) {
             auto word = f.bm.word_at(w);
             while (word) {
@@ -147,7 +143,7 @@ namespace {
         std::vector<typename inco::SparseSlotMap<T>::key_type> keys;
         keys.reserve(M);
         for (std::size_t i = 0; i < M; ++i)
-            keys.push_back(m.try_emplace(make_val<T>(i)).value());
+            keys.push_back(m.try_emplace_back(make_val<T>(i)).value());
         if (stride > 1)
             for (std::size_t i = 0; i < M; ++i)
                 if (i % stride != 0) m.erase(keys[i]);
@@ -249,7 +245,7 @@ namespace {
     template <class T>
     std::vector<std::uint32_t> decode_indices(Fixture<T>& f) {
         std::vector<std::uint32_t> v;
-        const std::size_t words = inco::ceil_div(f.bm.capacity(), 64);
+        const std::size_t words = inco::utils::ceil_div(f.bm.capacity(), 64);
         for (std::size_t w = 0; w < words; ++w) {
             auto word = f.bm.word_at(w);
             while (word) {

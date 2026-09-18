@@ -4,7 +4,7 @@ module;
 #include <cstddef>
 #include <cstdint>
 
-export module slotmap.concepts;
+export module slotmap:concepts;
 
 namespace inco {
     export template <class F>
@@ -34,4 +34,7 @@ namespace inco {
         { s.ensure(n) };
         { cs.capacity() } -> std::convertible_to<std::size_t>;
     };
+
+    export template <class Fn, class T>
+    concept IterativeLambda = std::regular_invocable<Fn, std::size_t, T&>;
 }

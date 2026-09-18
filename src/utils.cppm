@@ -2,11 +2,11 @@ module;
 #include <algorithm>
 #include <bit>
 #include <cstddef>
-export module slotmap.utils;
+export module slotmap:utils;
 
-namespace inco {
+namespace inco::utils {
     // `std::pow` is not consteval so yeah thank you WG21
-    export consteval double pow(const double base, const int exp) noexcept { // NOLINT(bugprone-easily-swappable-parameters)
+    export consteval double const_pow(const double base, const int exp) noexcept { // NOLINT(bugprone-easily-swappable-parameters)
         double res = 1.0;
         const bool negative = exp < 0;
         const int n = negative ? -exp : exp;
@@ -26,7 +26,7 @@ namespace inco {
         return (a + b - 1) / b;
     }
 
-    export void prefetch_read(const void* p) noexcept {
+    void prefetch_read(const void* p) noexcept {
 #if defined(__GNUC__) || defined(__clang__)
         //pointer
         __builtin_prefetch(
@@ -41,7 +41,7 @@ namespace inco {
 #endif
     }
 
-    export template <class T>
+    template <class T>
     consteval std::size_t get_page_slots(
         const std::size_t bytes_per_page,
         const std::size_t min_slots

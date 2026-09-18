@@ -4,8 +4,8 @@ module;
 #include <cstdint>
 #include <utility>
 
-export module slotmap.storage:split_store;
-import :paged_store;
+export module slotmap:storage.split_store;
+import :storage.paged_store;
 
 namespace inco {
     export template <

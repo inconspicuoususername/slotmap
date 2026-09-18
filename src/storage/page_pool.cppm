@@ -2,7 +2,7 @@ module;
 #include <cstddef>
 #include <new>
 #include <vector>
-module slotmap.storage:page_pool;
+module slotmap:storage.page_pool;
 
 namespace inco {
     // thread local freelist

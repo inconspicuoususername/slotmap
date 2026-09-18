@@ -2,28 +2,26 @@ module;
 
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 #include <cstdint>
+#include <expected>
 #include <functional>
 #include <iostream>
 #include <utility>
 
-#include "macros.h"
-
 export module slotmap:sparse;
 
 import :key;
-import result;
-import slotmap.free;
-import slotmap.storage;
-import slotmap.concepts;
-import slotmap.iterators;
-import slotmap.utils;
+import :error;
+import :free;
+import :storage;
+import :concepts;
+import :iterators;
+import :utils;
 
 namespace inco {
     export template <
-        class T,
-        class Tag = T,
+        typename T,
+        typename Tag = T,
         class Finder = LiveAllocBitmap,
         class SlotStorage = SplitStore<T>,
         class Iterator = void>
@@ -35,11 +33,8 @@ namespace inco {
         using key_type = Key<Tag>;
         using version_t = std::uint32_t;
 
-        using ThisFinder = Finder;
-        using ThisStorage = SlotStorage;
-
-        template <class U>
-        using Ref = std::reference_wrapper<U>;
+        using finder_t = Finder;
+        using storage_t = SlotStorage;
 
         using IteratorType = std::conditional_t<
             std::is_same_v<Iterator, void>,
@@ -48,13 +43,12 @@ namespace inco {
         >;
 
         static_assert(
-            std::constructible_from<IteratorType, Finder&, SlotStorage&>,
-            "The provided Iterator type must be constructible from the required arguments.")
-        ;
-
+            std::constructible_from<IteratorType, finder_t&, storage_t&>,
+            "The provided Iterator type must be constructible from the required arguments.");
 
         template <class... Args>
-        key_type emplace(Args&&... args) {
+        requires std::constructible_from<T, Args...>
+        key_type emplace_back(Args&&... args) {
             std::size_t slot = free_.acquire();
             if (slot == Finder::npos) [[unlikely]] {
                 slot = grow_and_reacquire();
@@ -79,9 +73,9 @@ namespace inco {
         }
 
         template <class... Args>
-        result::Result<key_type> try_emplace(Args&&... args) {
-            key_type k = emplace(std::forward<Args>(args)...);
-            if (!k.valid()) return result::fail("index space exhausted");
+        ResultType<key_type> try_emplace_back(Args&&... args) {
+            key_type k = emplace_back(std::forward<Args>(args)...);
+            if (!k.valid()) return unexpected("index space exhausted");
             return k;
         }
 
@@ -109,21 +103,24 @@ namespace inco {
             return const_cast<SparseSlotMap*>(this)->find(k);
         }
 
-        // Result<..> version of find
-        [[nodiscard]] result::Result<Ref<T> > at(key_type k) const {
-            if (T* p = find(k)) return Ref<T>{*p};
-            return result::fail("invalid key provided");
+        // slow version
+        [[nodiscard]] std::optional<T> at(key_type k) const {
+            if (T* p = find(k)) return std::reference_wrapper<T>{*p};
+            return std::nullopt;
         }
 
         bool erase(key_type k) {
             T* p = find(k);
             if (!p) return false;
+
             const std::size_t idx = static_cast<std::size_t>(k.index());
+
             store_.destroy(idx);
             // invalidate every outstanding key to this slot
             ++*store_.version_at(idx);
             free_.release(idx);
             --size_;
+
             return true;
         }
 
@@ -147,22 +144,24 @@ namespace inco {
         }
 
 
-        FORCE_INLINE IteratorType begin() {
+        IteratorType begin() {
             return IteratorType{free_, store_};
         }
 
-        [[nodiscard]] FORCE_INLINE
+        [[nodiscard]]
         std::default_sentinel_t end() const noexcept {
             return std::default_sentinel;
         }
 
-        template <int K = (sizeof(T) >= 32 ? 16 : 8), class Fn>
-        void for_each_fast(Fn&& fn) {
-            inco::for_each_unrolled<Finder, SlotStorage, Fn, K>(
-                free_,
-                store_,
-                std::forward<Fn>(fn));
-        }
+        // template <, class Fn>
+        // requires IterativeLambda<Fn, T>
+        // void for_each_fast(Fn&& fn) {
+        //     inco::unrolled(free_, store_, std::forward<Fn>(fn));
+        //     // inco::for_each_unrolled<T, Finder, SlotStorage, Fn, K>(
+        //     //     free_,
+        //     //     store_,
+        //     //     std::forward<Fn>(fn));
+        // }
 
         template <class Lefunc, class Lambda>
         void fn_iterator(Lefunc&& walk, Lambda&& lambda) {
@@ -175,15 +174,16 @@ namespace inco {
         // TODO per-page rwlock on bitmap/version writes wit page dir
 
     private:
+        template <int, class> friend struct for_each_unrolled_closure;
         [[gnu::cold, gnu::noinline]]
         std::size_t grow_and_reacquire() {
             expand(get_growth_factor());
             return free_.acquire();
         }
 
-        inline std::size_t get_growth_factor() const noexcept {
+        [[nodiscard]] inline std::size_t get_growth_factor() const noexcept {
             // constexpr std::size_t max_growth_factor = 16;
-            // const auto factor = ceil_div(size() + 1, SlotStorage::page_slots);
+            // const auto factor = utils::ceil_div(size() + 1, SlotStorage::page_slots);
             // // std::cout << " Factor " << factor << "\n";
             // const auto growth_factor =  std::min(factor * factor, max_growth_factor);
             constexpr auto growth_factor = 1;
@@ -194,5 +194,4 @@ namespace inco {
         SlotStorage store_{};
         std::size_t size_ = 0;
     };
-    ;
 }

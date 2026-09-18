@@ -9,8 +9,8 @@ module;
 
 #include "../macros.h"
 
-export module slotmap.free:bitmap;
-import slotmap.utils;
+export module slotmap:free.bitmap;
+import :utils;
 
 constexpr bool TESTFLAG = true;
 
@@ -39,7 +39,7 @@ namespace inco {
         static constexpr word full = ~word{0};
         static constexpr std::size_t max_levels = 6; // 64^6 > 2^32, cca 68 bil
         static constexpr std::size_t max_items =
-            pow(word_bits, max_levels);
+            utils::const_pow(word_bits, max_levels);
 
         static constexpr std::size_t LEAF_LEVEL = 0;
 
@@ -78,7 +78,7 @@ namespace inco {
 
             //convert requested slots into words. ceil div because any overflow must be a new word
             // rather than the default floor of integer division
-            const std::size_t leaf_words = ceil_div(slots, word_bits);
+            const std::size_t leaf_words = utils::ceil_div(slots, word_bits);
 
             if (_depth == 0) _depth = 1;
             // new leaf words should be initialized to 0
@@ -88,7 +88,7 @@ namespace inco {
             word_index child_words = leaf_words;
             for (std::size_t level = 1; child_words > 1; ++level) {
                 // e.g. 3 words for 192 requested slots
-                const std::size_t need = ceil_div(child_words, word_bits);
+                const std::size_t need = utils::ceil_div(child_words, word_bits);
                 if (level < _depth) {
                     // if we're still in the already claimed levels, just expand it so that
                     // it fits the new per-level need

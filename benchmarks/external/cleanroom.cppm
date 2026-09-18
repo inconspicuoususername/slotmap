@@ -62,11 +62,6 @@ extern "C++" int main(int argc, char** argv) {
             bench::run_adapter<adapters::IncoPrefetchFnAd>(s);
         });
 
-    if (eq(who, "both") || eq(who, "walkfn"))
-        bench::isolated([&] {
-            bench::run_adapter<adapters::IncoWalkFnAd>(s);
-        });
-
     if (eq(who, "both") || eq(who, "expandfn"))
         bench::isolated([&] {
             bench::run_adapter<adapters::IncoExpandFnAd>(s);

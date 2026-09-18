@@ -2,11 +2,11 @@ module;
 #include <cstddef>
 #include <iterator>
 #include "../macros.h"
-export module slotmap.iterators:page_walk;
-import :entity;
-import slotmap.free;
-import slotmap.utils;
-import slotmap.concepts;
+export module slotmap:iterators.page_walk;
+import :iterators.entity;
+import :free;
+import :utils;
+import :concepts;
 
 namespace inco {
     // a regular bit walk iterator, but the
@@ -15,7 +15,7 @@ namespace inco {
     //
     // Requires page_slots % word_bits == 0 so a word is at the very least one page
     export template <class T, class Store, class Finder = HierarchicalBitmap,
-        bool THING = true>
+        bool USE_FLAT_BIT_POP = true>
         requires Storage<Store, T> && LiveBitmapView<Finder>
     class PageWalkIter {
     public:
@@ -34,7 +34,7 @@ namespace inco {
 
         PageWalkIter(const Finder& bm, Store& store) noexcept
             : _bitmap(&bm), _store(&store),
-              _total_words(ceil_div(bm.capacity(),
+              _total_words(utils::ceil_div(bm.capacity(),
                                     Finder::word_bits)) {
             if (_total_words) _current_word = bm.word_at(0);
             seek();
@@ -58,8 +58,8 @@ namespace inco {
         }
 
         PageWalkIter& operator++() noexcept {
-            constexpr auto WORD_1 = typename Finder::word{1};
-            if constexpr (THING) {
+            if constexpr (USE_FLAT_BIT_POP) {
+                constexpr auto WORD_1 = typename Finder::word{1};
                 _current_word >>= 1;
                 ++_bit;
 
@@ -100,7 +100,7 @@ namespace inco {
                 _current_word = _bitmap->word_at(_word_idx);
             }
             _wbase = _store->at(_word_idx * Finder::word_bits);
-            if constexpr (THING) {
+            if constexpr (USE_FLAT_BIT_POP) {
                 _bit = 0;
                 advance();
             } else
@@ -117,23 +117,4 @@ namespace inco {
         typename Finder::word _current_word = 0;
         bool _done = false;
     };
-
-
-    export template <class Finder, class Store, class Fn>
-        requires LiveBitmapView<Finder>
-    void for_each_walk(const Finder& bm, Store& store, Fn&& fn) {
-        constexpr std::size_t WB = Finder::word_bits;
-        const std::size_t total = ceil_div(bm.capacity(), WB);
-        for (std::size_t ci = 0; ci < total; ++ci) {
-            typename Finder::word w = bm.word_at(ci);
-            if (!w) continue;
-            auto* base = store.at(ci * WB);
-            const std::size_t g = ci * WB;
-            do {
-                const int b = std::countr_zero(w);
-                fn(g + static_cast<std::size_t>(b), base[b]);
-                w &= w - 1;
-            } while (w);
-        }
-    }
 }

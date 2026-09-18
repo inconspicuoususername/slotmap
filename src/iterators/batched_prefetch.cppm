@@ -5,10 +5,10 @@ module;
 #include <iterator>
 #include <type_traits>
 #include "../macros.h"
-export module slotmap.iterators:batched_prefetch;
-import slotmap.utils;
-import slotmap.concepts;
-import :entity;
+export module slotmap:iterators.batched_prefetch;
+import :utils;
+import :concepts;
+import :iterators.entity;
 
 namespace inco {
     // an attempt was made
@@ -36,7 +36,7 @@ namespace inco {
             bool start_done,
             std::size_t ahead
         ) noexcept : bm(&b), store(&s), base(start_base),
-                     total_words(ceil_div(b.capacity(), WB)),
+                     total_words(utils::ceil_div(b.capacity(), WB)),
                      word_idx(start_word), cur(start_cur), done(start_done
                      ) {
             for (std::size_t i = 0; i < ahead; ++i) pump();
@@ -44,7 +44,7 @@ namespace inco {
 
         FORCE_INLINE void pump() noexcept {
             if (done) return;
-            prefetch_read(base + std::countr_zero(cur));
+            utils::prefetch_read(base + std::countr_zero(cur));
             cur &= cur - 1;
             if (cur) return;
             do {
@@ -74,7 +74,7 @@ namespace inco {
         PrefetchPageWalkIter(const Finder& bm, Store& store) noexcept
             : _bitmap(&bm),
               _store(&store),
-              _total_words(ceil_div(bm.capacity(), Finder::word_bits)
+              _total_words(utils::ceil_div(bm.capacity(), Finder::word_bits)
               ) {
             if (_total_words) _current_word = bm.word_at(0);
             seek();
@@ -141,7 +141,7 @@ namespace inco {
     void for_each_prefetched(const Finder& bm, Store& store, Fn&& fn) {
         using T = std::remove_pointer_t<decltype(store.at(std::size_t{}))>;
         constexpr std::size_t WB = Finder::word_bits;
-        const std::size_t total = ceil_div(bm.capacity(), WB);
+        const std::size_t total = utils::ceil_div(bm.capacity(), WB);
         if (!total) return;
 
         const typename Finder::word w0 = bm.word_at(0);

@@ -1,8 +1,8 @@
 module;
 
 
-export module slotmap.storage;
+export module slotmap:storage;
 
-export import :paged_store;
-export import :split_store;
-export import :soa_store;
+export import :storage.paged_store;
+export import :storage.split_store;
+export import :storage.soa_store;

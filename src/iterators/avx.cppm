@@ -5,9 +5,9 @@ module;
 #include <bit>
 #include <cstdint>
 #include <type_traits>
-export module slotmap.iterators:avx;
-import slotmap.concepts;
-import slotmap.utils;
+export module slotmap:iterators.avx;
+import :concepts;
+import :utils;
 
 namespace inco {
     // did claude cook?
@@ -41,7 +41,7 @@ namespace inco {
         const __m512i vec_indices = _mm512_loadu_si512(sequence_0_to_63.data());
 
         const std::size_t total_words =
-            ceil_div(bm.capacity(), std::size_t{64});
+            utils::ceil_div(bm.capacity(), std::size_t{64});
 
         for (std::size_t cap_i = 0; cap_i < total_words; ++cap_i) {
             const std::uint64_t word = bm.word_at(cap_i);
@@ -117,7 +117,7 @@ namespace inco {
         const __m512i vec_indices = _mm512_loadu_si512(sequence_0_to_63.data());
 
         const std::size_t total_words =
-            ceil_div(bm.capacity(), std::size_t{64});
+            utils::ceil_div(bm.capacity(), std::size_t{64});
 
         for (std::size_t cap_i = 0; cap_i < total_words; ++cap_i) {
             const std::uint64_t word = bm.word_at(cap_i);

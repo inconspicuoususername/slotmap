@@ -8,7 +8,7 @@
         using Map = inco::SparseSlotMap<T, T, Finder, StoreTmpl<T>>;         \
         template <class T> using Key = typename Map<T>::key_type;            \
         template <class T> static Map<T> make() { return Map<T>{}; }         \
-        template <class T> static Key<T> insert(Map<T>& m, const T& v) { return m.emplace(v); } \
+        template <class T> static Key<T> insert(Map<T>& m, const T& v) { return m.emplace_back(v); } \
         template <class T> static const T* find(Map<T>& m, Key<T> k) { return m.find(k); } \
         template <class T> static void erase(Map<T>& m, Key<T> k) { m.erase(k); } \
         template <class T, class F> static void for_each(Map<T>& m, F&& f) { \

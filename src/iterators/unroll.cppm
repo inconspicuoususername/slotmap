@@ -1,12 +1,11 @@
 module;
 #include <iterator>
 #include "../macros.h"
-export module slotmap.iterators:unroll;
-import slotmap.free;
-import slotmap.utils;
-import slotmap.concepts;
-import :entity;
-
+export module slotmap:iterators.unroll;
+import :free;
+import :utils;
+import :concepts;
+import :iterators.entity;
 
 namespace inco {
     export template <class T, class Store, class Finder>
@@ -29,7 +28,7 @@ namespace inco {
         FORCE_INLINE UnrolledPageWalkIter(const Finder& bm,
                                           Store& store) noexcept
             : _bitmap(&bm), _store(&store),
-              _total_words(ceil_div(bm.capacity(), Finder::word_bits)) {
+              _total_words(utils::ceil_div(bm.capacity(), Finder::word_bits)) {
             refill();
         }
 
@@ -90,7 +89,7 @@ namespace inco {
     void for_each_expanded(const Finder& bitmap, Store& store, Fn&& fn) {
         constexpr auto WORD_BITS = Finder::word_bits;
         constexpr auto WORD_1 = typename Finder::word{1};
-        const std::size_t total = ceil_div(bitmap.capacity(), WORD_BITS);
+        const std::size_t total = utils::ceil_div(bitmap.capacity(), WORD_BITS);
 
         for (std::size_t cap_i = 0; cap_i < total; ++cap_i) {
             typename Finder::word word = bitmap.word_at(cap_i);
@@ -106,11 +105,11 @@ namespace inco {
         }
     }
 
-    export template <class Finder, class Store, class Fn, int K = 8>
-        requires LiveBitmapView<Finder>
+    export template <class T, class Finder, class Store, class Fn, int K = 8>
+        requires LiveBitmapView<Finder> && IterativeLambda<Fn, T>
     void for_each_unrolled(const Finder& bitmap, Store& store, Fn&& fn) {
         const std::size_t total =
-            ceil_div(bitmap.capacity(), Finder::word_bits);
+            utils::ceil_div(bitmap.capacity(), Finder::word_bits);
 
         for (std::size_t cap_i = 0; cap_i < total; ++cap_i) {
             typename Finder::word word = bitmap.word_at(cap_i);
@@ -142,7 +141,7 @@ namespace inco {
     export template <class Finder, class Store, class Fn, int K = 8>
         requires LiveBitmapView<Finder>
     void for_each_unrolled2(const Finder& bm, Store& store, Fn&& fn) {
-        const std::size_t total = ceil_div(bm.capacity(), Finder::word_bits);
+        const std::size_t total = utils::ceil_div(bm.capacity(), Finder::word_bits);
 
         for (std::size_t cap_i = 0; cap_i < total; ++cap_i) {
             typename Finder::word word = bm.word_at(cap_i);
@@ -161,39 +160,6 @@ namespace inco {
                 for (int i = 0; i < 8; ++i)
                     fn(full_offset +
                        static_cast<std::size_t>(unroll[i]),
-                       base[unroll[i]]);
-            }
-            while (word) {
-                const auto bits = std::countr_zero(word);
-                fn(full_offset + static_cast<std::size_t>(bits), base[bits]);
-                word &= word - 1;
-            }
-        }
-    }
-
-    export template <class Finder, class Store, class Fn, int K = 8>
-        requires LiveBitmapView<Finder>
-    void saucy_ass_unroll(const Finder& bitmap, Store& store, Fn&& fn) {
-        const std::size_t total =
-            ceil_div(bitmap.capacity(), Finder::word_bits);
-
-        for (std::size_t cap_i = 0; cap_i < total; ++cap_i) {
-            typename Finder::word word = bitmap.word_at(cap_i);
-            if (!word) continue;
-
-            const std::size_t full_offset = cap_i * Finder::word_bits;
-            auto* base = store.at(full_offset);
-
-            while (std::popcount(word) >= K) {
-                int unroll[K];
-#pragma GCC unroll 16
-                for (int i = 0; i < K; ++i) {
-                    unroll[i] = std::countr_zero(word);
-                    word &= word - 1;
-                }
-#pragma GCC unroll 16
-                for (int i = 0; i < K; ++i)
-                    fn(full_offset + static_cast<std::size_t>(unroll[i]),
                        base[unroll[i]]);
             }
             while (word) {

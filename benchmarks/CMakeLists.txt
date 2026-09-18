@@ -95,7 +95,7 @@ add_slotmap_benchmark(slotmap-bench-external
 add_slotmap_benchmark(slotmap-bench-clean
         MODULES external/cleanroom.cppm
         DEPENDS bench_external_deps
-        OPTIONS -g -fno-omit-frame-pointer -mavx2
+        OPTIONS -g -fno-omit-frame-pointer -mavx2 -mavx512f
 )
 
 add_slotmap_benchmark(slotmap-bench-perf

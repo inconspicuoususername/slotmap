@@ -6,9 +6,9 @@ module;
 
 #include "../macros.h"
 
-export module slotmap.free:defer;
-import :bitmap;
-import slotmap.utils;
+export module slotmap:free.defer;
+import :free.bitmap;
+import :utils;
 
 namespace inco {
     struct SlotRing {
@@ -149,7 +149,7 @@ namespace inco {
 
         FORCE_INLINE void grow(std::size_t slots) {
             _alloc.grow(slots);
-            _live.resize(ceil_div(slots, word_bits), 0);
+            _live.resize(utils::ceil_div(slots, word_bits), 0);
         }
 
         [[nodiscard]] FORCE_INLINE std::size_t capacity() const noexcept {

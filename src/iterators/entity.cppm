@@ -1,6 +1,6 @@
 module;
 #include <cstddef>
-export module slotmap.iterators:entity;
+export module slotmap:iterators.entity;
 
 namespace inco {
     export template<class T>

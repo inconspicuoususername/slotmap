@@ -2,11 +2,11 @@ module;
 #include <bit>
 #include <cstddef>
 #include <iterator>
-export module slotmap.iterators:bit_walk;
-import :entity;
-import slotmap.free;
-import slotmap.utils;
-import slotmap.concepts;
+export module slotmap:iterators.bit_walk;
+import :iterators.entity;
+import :free;
+import :utils;
+import :concepts;
 
 namespace inco {
     // Identitcal to the page walk iterator
@@ -27,7 +27,7 @@ namespace inco {
 
         BitWalkIter(const Finder &bm, Store &store) noexcept
             : _bitmap(&bm), _store(&store),
-              _total_words(ceil_div(bm.capacity(),
+              _total_words(utils::ceil_div(bm.capacity(),
                                     Finder::word_bits)) {
             if (_total_words) _current_word = bm.word_at(0);
             seek();

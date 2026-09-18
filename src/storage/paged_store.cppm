@@ -4,9 +4,9 @@ module;
 #include <cstring>
 #include <utility>
 #include <vector>
-export module slotmap.storage:paged_store;
-import slotmap.utils;
-import :page_pool;
+export module slotmap:storage.paged_store;
+import :utils;
+import :storage.page_pool;
 
 namespace inco {
     // Paged pool with fixed size pages.
@@ -22,7 +22,7 @@ namespace inco {
     class PagedStore {
     public:
         // number of T slots per page
-        static constexpr std::size_t page_slots = get_page_slots<T>(
+        static constexpr std::size_t page_slots = utils::get_page_slots<T>(
             BytesPerPage,
             MinSlots
         );

@@ -27,7 +27,7 @@ export namespace adapters {
 
         template <class T>
         static Key<T> insert(Map<T>& m, const T& v) {
-            return m.try_emplace(v).value();
+            return m.emplace_back(v);
         }
 
         template <class T>
@@ -57,7 +57,7 @@ export namespace adapters {
 
         template <class T>
         static Key<T> insert(Map<T>& m, const T& v) {
-            return m.emplace(v);
+            return m.emplace_back(v);
         }
 
         template <class T>
@@ -95,7 +95,7 @@ export namespace adapters {
 
         template <class T>
         static Key<T> insert(Map<T>& m, const T& v) {
-            return m.emplace(v);
+            return m.emplace_back(v);
         }
 
         template <class T>
@@ -123,7 +123,7 @@ export namespace adapters {
         static Map<T> make() { return Map<T>{}; }
 
         template <class T>
-        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace(v); }
+        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace_back(v); }
 
         template <class T>
         static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
@@ -148,7 +148,7 @@ export namespace adapters {
         static Map<T> make() { return Map<T>{}; }
 
         template <class T>
-        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace(v); }
+        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace_back(v); }
 
         template <class T>
         static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
@@ -169,10 +169,6 @@ export namespace adapters {
                           },                                        \
                           [&](std::size_t, const T& v) { std::forward<F>(f)(v); });  \
         }
-
-    struct IncoWalkFnAd : IncoFnAd {
-        LAMBDA_FN_ITERATOR(inco::for_each_walk);
-    };
 
     struct IncoPrefetchFnAd : IncoFnAd {
         LAMBDA_FN_ITERATOR(inco::for_each_prefetched);
@@ -195,7 +191,7 @@ export namespace adapters {
         static Map<T> make() { return Map<T>{}; }
 
         template <class T>
-        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace(v); }
+        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace_back(v); }
 
         template <class T>
         static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
@@ -205,7 +201,7 @@ export namespace adapters {
 
         template <class T, class F>
         static void for_each(Map<T>& m, F&& f) {
-            m.for_each_fast([&](std::size_t, const T& v) { f(v); });
+            m | inco::unrolled([&](std::size_t, const T& v) { f(v); });
         }
     };
 
@@ -233,7 +229,7 @@ export namespace adapters {
 
         template <class T>
         static Key<T> insert(Map<T>& m, const T& v) {
-            return m.try_emplace(v).value();
+            return m.emplace_back(v);
         }
 
         template <class T>

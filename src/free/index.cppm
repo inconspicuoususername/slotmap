@@ -1,5 +1,5 @@
-export module slotmap.free;
+export module slotmap:free;
 
-export import :bitmap;
-export import :defer;
-export import :freelist;
+export import :free.bitmap;
+export import :free.defer;
+export import :free.freelist;

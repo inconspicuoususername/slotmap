@@ -4,7 +4,7 @@ module;
 #include <cstdint>
 #include <vector>
 
-export module slotmap.free:freelist;
+export module slotmap:free.freelist;
 
 namespace inco {
     // a (not yet(?) intrusive) free-list
