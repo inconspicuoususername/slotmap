@@ -18,7 +18,7 @@ export namespace adapters {
         static constexpr std::size_t max_slots = static_cast<std::size_t>(-1);
 
         template <class T>
-        using Map = inco::SparseSlotMap<T, inco::FreeList>;
+        using Map = inco::SparseSlotMap<T>;
         template <class T>
         using Key = typename Map<T>::key_type;
 
@@ -70,6 +70,151 @@ export namespace adapters {
         static void for_each(Map<T>& m, F&& f) {
             for (auto&& e : m) f(e.value);
         }
+    };
+
+    template <
+        class T,
+        template <class, class, class> class Iterator,
+        class Finder = inco::LiveAllocBitmap,
+        class Store = inco::SplitStore<T> >
+    using SlotMapMitDasIterator = inco::SparseSlotMap<T, T, Finder, Store,
+        Iterator<T, Store, Finder> >;
+
+
+    struct IncoUnrollIteratorAd {
+        static constexpr const char* name =
+            "inco (LiveAllocBitmap)";
+        static constexpr std::size_t max_slots = static_cast<std::size_t>(-1);
+        template <class T>
+        using Map = SlotMapMitDasIterator<T, inco::UnrolledPageWalkIter>;
+        template <class T>
+        using Key = typename Map<T>::key_type;
+
+        template <class T>
+        static Map<T> make() { return Map<T>{}; }
+
+        template <class T>
+        static Key<T> insert(Map<T>& m, const T& v) {
+            return m.emplace(v);
+        }
+
+        template <class T>
+        static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
+
+        template <class T>
+        static void erase(Map<T>& m, Key<T> k) { m.erase(k); }
+
+        template <class T, class F>
+        static void for_each(Map<T>& m, F&& f) {
+            for (auto&& e : m) f(e.value);
+        }
+    };
+    
+    struct IncoPrefetchIterAd {
+        static constexpr const char* name = "inco (PrefetchIter)";
+        static constexpr std::size_t max_slots = static_cast<std::size_t>(-1);
+
+        template <class T>
+        using Map = SlotMapMitDasIterator<T, inco::PrefetchPageWalkIter>;
+        template <class T>
+        using Key = typename Map<T>::key_type;
+
+        template <class T>
+        static Map<T> make() { return Map<T>{}; }
+
+        template <class T>
+        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace(v); }
+
+        template <class T>
+        static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
+
+        template <class T>
+        static void erase(Map<T>& m, Key<T> k) { m.erase(k); }
+
+        template <class T, class F>
+        static void for_each(Map<T>& m, F&& f) {
+            for (auto&& e : m) f(e.value);
+        }
+    };
+
+    struct IncoFnAd {
+        static constexpr std::size_t max_slots = static_cast<std::size_t>(-1);
+        template <class T>
+        using Map = inco::SparseSlotMap<T, T, inco::LiveAllocBitmap>;
+        template <class T>
+        using Key = typename Map<T>::key_type;
+
+        template <class T>
+        static Map<T> make() { return Map<T>{}; }
+
+        template <class T>
+        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace(v); }
+
+        template <class T>
+        static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
+
+        template <class T>
+        static void erase(Map<T>& m, Key<T> k) { m.erase(k); }
+    };
+
+#define LAMBDA_FN_ITERATOR(fn_name)                                 \
+    static constexpr const char* name = #fn_name;                   \
+            template <class T, class F>                             \
+    static void for_each(Map<T>& m, F&& f) {                        \
+            m.fn_iterator([](auto& bm, auto& store, auto&& fn) {    \
+                                fn_name(                            \
+                                  bm,                               \
+                                  store,                            \
+                                  std::forward<decltype(fn)>(fn));  \
+                          },                                        \
+                          [&](std::size_t, const T& v) { std::forward<F>(f)(v); });  \
+        }
+
+    struct IncoWalkFnAd : IncoFnAd {
+        LAMBDA_FN_ITERATOR(inco::for_each_walk);
+    };
+
+    struct IncoPrefetchFnAd : IncoFnAd {
+        LAMBDA_FN_ITERATOR(inco::for_each_prefetched);
+    };
+
+    struct IncoExpandFnAd : IncoFnAd {
+        LAMBDA_FN_ITERATOR(inco::for_each_expanded);
+    };
+
+    struct IncoUnrollFnAd {
+        static constexpr const char* name = "inco (UnrollFn)";
+        static constexpr std::size_t max_slots = static_cast<std::size_t>(-1);
+
+        template <class T>
+        using Map = inco::SparseSlotMap<T, T, inco::LiveAllocBitmap>;
+        template <class T>
+        using Key = typename Map<T>::key_type;
+
+        template <class T>
+        static Map<T> make() { return Map<T>{}; }
+
+        template <class T>
+        static Key<T> insert(Map<T>& m, const T& v) { return m.emplace(v); }
+
+        template <class T>
+        static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
+
+        template <class T>
+        static void erase(Map<T>& m, Key<T> k) { m.erase(k); }
+
+        template <class T, class F>
+        static void for_each(Map<T>& m, F&& f) {
+            m.for_each_fast([&](std::size_t, const T& v) { f(v); });
+        }
+    };
+
+    struct IncoAVXFnAd : IncoFnAd {
+        LAMBDA_FN_ITERATOR(inco::for_each_avx);
+    };
+
+    struct IncoAVXLanesFnAd : IncoFnAd {
+        LAMBDA_FN_ITERATOR(inco::for_each_avx_lanes);
     };
 
     struct IncoSoAAd {
@@ -186,7 +331,7 @@ export namespace adapters {
 
         template <class T>
         static const T* find(Map<T>& m, Key<T> k) { return m.find(k); }
-        
+
         template <class T>
         static void erase(Map<T>& m, Key<T> k) { m.free(k); }
 

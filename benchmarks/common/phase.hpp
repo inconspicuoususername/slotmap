@@ -64,6 +64,7 @@ namespace bench::phase {
                   Ad::for_each(f.m, [&](const T& v) { sum += sum_val(v); });
                   return sum;
               }());
+        
         return run(live,
                    [&] {
                        std::uint64_t sum = 0;

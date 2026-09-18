@@ -8,6 +8,8 @@ module;
 #include <iostream>
 #include <utility>
 
+#include "macros.h"
+
 export module slotmap:sparse;
 
 import :key;
@@ -32,6 +34,9 @@ namespace inco {
     public:
         using key_type = Key<Tag>;
         using version_t = std::uint32_t;
+
+        using ThisFinder = Finder;
+        using ThisStorage = SlotStorage;
 
         template <class U>
         using Ref = std::reference_wrapper<U>;
@@ -142,10 +147,29 @@ namespace inco {
         }
 
 
-        IteratorType begin() { return IteratorType{free_, store_}; }
+        FORCE_INLINE IteratorType begin() {
+            return IteratorType{free_, store_};
+        }
 
-        [[nodiscard]] std::default_sentinel_t end() const noexcept {
+        [[nodiscard]] FORCE_INLINE
+        std::default_sentinel_t end() const noexcept {
             return std::default_sentinel;
+        }
+
+        template <int K = (sizeof(T) >= 32 ? 16 : 8), class Fn>
+        void for_each_fast(Fn&& fn) {
+            inco::for_each_unrolled<Finder, SlotStorage, Fn, K>(
+                free_,
+                store_,
+                std::forward<Fn>(fn));
+        }
+
+        template <class Lefunc, class Lambda>
+        void fn_iterator(Lefunc&& walk, Lambda&& lambda) {
+            std::forward<Lefunc>(walk)(
+                free_,
+                store_,
+                std::forward<Lambda>(lambda));
         }
 
         // TODO per-page rwlock on bitmap/version writes wit page dir
@@ -170,4 +194,5 @@ namespace inco {
         SlotStorage store_{};
         std::size_t size_ = 0;
     };
+    ;
 }

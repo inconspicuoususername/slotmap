@@ -1,4 +1,5 @@
 #pragma once
+#include "perf.hpp"
 #include "phase.hpp"
 
 namespace bench {

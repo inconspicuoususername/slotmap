@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "perf.hpp"
+
 namespace bench {
     // Fixed live-set size for every measurement so cross-impl numbers line up.
     // 512K elements -> 32MB of Payload64 live at 100% density, well past L3.
@@ -106,7 +108,7 @@ namespace bench {
     // Evict the caches so a measurement doesn't silently inherit the previous
     // phase's warm working set
     inline void flush_cache() noexcept {
-        static constexpr std::size_t BYTES = 64u << 20; // 64 MiB > L3
+        static constexpr std::size_t BYTES = 64u << 21; // 64 MiB > L3
         static std::vector<std::uint64_t> buf(BYTES / sizeof(std::uint64_t), 1);
         std::uint64_t acc = 0;
         // one write per 64B line dirties the whole buffer, forcing eviction
@@ -140,9 +142,12 @@ namespace bench {
 
         std::array<double, REPS> ms{};
         for (int i = 0; i < REPS; ++i) {
+            PerfCtl perf;
+            perf.enable();
             const auto t0 = clock::now();
             cs += fn();
             const auto t1 = clock::now();
+            perf.disable();
             ms[i] = std::chrono::duration<double, std::milli>(t1 - t0).count();
         }
         g_sink += cs;

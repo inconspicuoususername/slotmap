@@ -1,186 +1,169 @@
 module;
 
-#include <array>
 #include <bit>
-#include <cstdint>
-#include <utility>
+#include <cstddef>
+#include <iterator>
+#include <type_traits>
+#include "../macros.h"
 export module slotmap.iterators:batched_prefetch;
-import slotmap.free;
 import slotmap.utils;
 import slotmap.concepts;
-import slotmap.storage;
 import :entity;
 
 namespace inco {
-    // rough logic description
-    //
-    // dense-iterate
-    // for each bottom level, bit skip and yield
-    //
-    // sparse-iterate
-    // acquire-like logic, begin at the top, and descend
-    // once we hit the leaf,
-    // while true bit skip (w & w-1) and yield
-    // if we're done, ascend.
-    // repeat until we hit a 1, then descend again until we hit the leaf
-    // repeat until we're done
-    //
-    class BatchedHierarchichalBitmapIterator {
-    public:
-        using HB = HierarchicalBitmap;
-        using word = HB::word;
+    // an attempt was made
+    template <class T, class Store, class Finder>
+    struct LeadPrefetcher {
+        using word = typename Finder::word;
+        static constexpr std::size_t WB = Finder::word_bits;
 
-        BatchedHierarchichalBitmapIterator() = default;
+        const Finder* bm = nullptr;
+        Store* store = nullptr;
+        T* base = nullptr;
+        std::size_t total_words = 0;
+        std::size_t word_idx = 0;
+        word cur = 0;
+        bool done = false;
 
-        explicit BatchedHierarchichalBitmapIterator(const HB &bm) noexcept
-            : _bitmap(&bm),
-              _num_leaf_words(ceil_div(bm.capacity(), HB::word_bits)) {
-            if (_num_leaf_words) _current_word = bm.word_at(0);
+        LeadPrefetcher() = default;
+
+        LeadPrefetcher(
+            const Finder& b,
+            Store& s,
+            std::size_t start_word,
+            word start_cur,
+            T* start_base,
+            bool start_done,
+            std::size_t ahead
+        ) noexcept : bm(&b), store(&s), base(start_base),
+                     total_words(ceil_div(b.capacity(), WB)),
+                     word_idx(start_word), cur(start_cur), done(start_done
+                     ) {
+            for (std::size_t i = 0; i < ahead; ++i) pump();
         }
 
-        // fills out with up to n next indices
-        // returns total indices or 0 if we're done
-        // TODO implement sparse logic sumwhere here
-        template<std::size_t N>
-        std::size_t fill_next_batch(
-            std::array<std::uint32_t, N> &out
-        ) noexcept {
-            std::size_t n = 0;
-            while (true) {
-                while (_current_word) {
-                    const int bit = std::countr_zero(_current_word);
-                    out[n++] = static_cast<std::uint32_t>(
-                        _word_idx * HB::word_bits + bit);
-                    _current_word &= _current_word - 1;
-                    if (n == N) return n;
+        FORCE_INLINE void pump() noexcept {
+            if (done) return;
+            prefetch_read(base + std::countr_zero(cur));
+            cur &= cur - 1;
+            if (cur) return;
+            do {
+                if (++word_idx >= total_words) {
+                    done = true;
+                    return;
                 }
-                // no more words left
-                if (++_word_idx >= _num_leaf_words) return n;
-                _current_word = _bitmap->word_at(_word_idx);
-            }
+                cur = bm->word_at(word_idx);
+            } while (!cur);
+            base = store->at(word_idx * WB);
         }
-
-    private:
-        const HB *_bitmap = nullptr;
-        std::size_t _num_leaf_words = 0;
-        std::size_t _word_idx = 0;
-        word _current_word = 0;
     };
 
-    template<
-        class T,
-        class Store,
-        std::size_t Batch = 32
-    > requires Storage<Store, T>
-    class [[deprecated("use PageWalkIter")]] BatchedPagedIterator {
+    export template <class T, class Store, class Finder, std::size_t Ahead = 64>
+        requires Storage<Store, T> && LiveBitmapView<Finder>
+    class PrefetchPageWalkIter {
     public:
         using entry = SlotMapIteratorEntry<T>;
         using value_type = entry;
         using reference = entry;
         using pointer = void;
         using difference_type = std::ptrdiff_t;
-        //input iterator bcz its single pass
         using iterator_concept = std::input_iterator_tag;
 
-        using batch_array = std::array<std::uint32_t, Batch>;
-        using batch_array_ptr = batch_array *;
+        PrefetchPageWalkIter() = default;
 
-        BatchedPagedIterator(
-            Store &store,
-            const HierarchicalBitmap &bm
-        ) noexcept
-            : _bitmap_iterator(bm),
+        PrefetchPageWalkIter(const Finder& bm, Store& store) noexcept
+            : _bitmap(&bm),
               _store(&store),
-              _current_ptr(&current_),
-              _next_ptr(&next_) {
-            fill(_current_ptr, _current_count);
-            fill(_next_ptr, _next_count);
+              _total_words(ceil_div(bm.capacity(), Finder::word_bits)
+              ) {
+            if (_total_words) _current_word = bm.word_at(0);
+            seek();
+            _lead = LeadPrefetcher<T, Store, Finder>(
+                bm,
+                store,
+                _word_idx,
+                _current_word,
+                _wbase,
+                _done,
+                Ahead);
         }
 
-        entry operator*() const {
-            std::size_t idx = _current_ptr->at(_cursor);
-            return entry{
-                .index = idx, .value = *_store->at(idx)
-            };
+        entry operator*() const noexcept {
+            const std::size_t idx = _word_idx * Finder::word_bits + _bit;
+            return entry{.index = idx, .value = _wbase[_bit]};
         }
 
-        BatchedPagedIterator &operator++() noexcept {
-            if (++_cursor != _current_count)
-                return *this;
-
-            std::swap(_current_ptr, _next_ptr);
-            _current_count = _next_count;
-            _cursor = 0;
-
-            fill(_next_ptr, _next_count);
-
+        PrefetchPageWalkIter& operator++() noexcept {
+            _current_word &= _current_word - 1;
+            if (_current_word) {
+                _bit = static_cast<std::size_t>(
+                    std::countr_zero(_current_word));
+            } else {
+                seek();
+            }
+            _lead.pump();
             return *this;
         }
 
+        void operator++(int) noexcept { ++*this; }
+
         bool operator==(std::default_sentinel_t) const noexcept {
-            return _current_count == 0;
+            return _done;
         }
 
     private:
-        void fill(batch_array_ptr &buf,
-                  std::size_t &count) noexcept {
-            count = _bitmap_iterator.fill_next_batch(*buf);
-
-            for (std::size_t i = 0; i < count; ++i)
-                prefetch_read(_store->at(buf->at(i)));
+        FORCE_INLINE void seek() noexcept {
+            while (!_current_word) {
+                if (++_word_idx >= _total_words) {
+                    _done = true;
+                    return;
+                }
+                _current_word = _bitmap->word_at(_word_idx);
+            }
+            _wbase = _store->at(_word_idx * Finder::word_bits);
+            _bit = static_cast<std::size_t>(std::countr_zero(_current_word));
         }
 
-        BatchedHierarchichalBitmapIterator _bitmap_iterator{};
-        Store *_store = nullptr;
-
-        batch_array current_{};
-        batch_array next_{};
-
-        batch_array_ptr _current_ptr = nullptr;
-        batch_array_ptr _next_ptr = nullptr;
-
-        std::size_t _current_count = 0;
-        std::size_t _next_count = 0;
-        std::size_t _cursor = 0;
+        const Finder* _bitmap = nullptr;
+        Store* _store = nullptr;
+        T* _wbase = nullptr;
+        std::size_t _total_words = 0;
+        std::size_t _word_idx = 0;
+        std::size_t _bit = 0;
+        typename Finder::word _current_word = 0;
+        bool _done = false;
+        LeadPrefetcher<T, Store, Finder> _lead{};
     };
 
-    template<
-        std::size_t Batch = 16,
-        class T,
-        std::size_t BytesPerPage,
-        std::size_t MinSlots,
-        class Fn
-    >
-    [[deprecated("use PageWalkIter")]]
-    void for_each_prefetched(
-        const HierarchicalBitmap &bitmap,
-        PagedStore<T, BytesPerPage, MinSlots> &store,
-        Fn &&fn
-    ) {
-        BatchedHierarchichalBitmapIterator iter{bitmap};
-        std::array<std::uint32_t, Batch> batch_a{}, batch_b{};
-        auto *cur = &batch_a;
-        auto *nxt = &batch_b;
+    export template <class Finder, class Store, class
+        Fn, std::size_t Ahead = 64>
+        requires LiveBitmapView<Finder>
+    void for_each_prefetched(const Finder& bm, Store& store, Fn&& fn) {
+        using T = std::remove_pointer_t<decltype(store.at(std::size_t{}))>;
+        constexpr std::size_t WB = Finder::word_bits;
+        const std::size_t total = ceil_div(bm.capacity(), WB);
+        if (!total) return;
 
-        std::size_t curr_batch_sz = iter.fill_next_batch(*cur);
-        for (std::size_t i = 0; i < curr_batch_sz; ++i)
-            // pre fill first batch
-            prefetch_read(store.at((*cur)[i]));
+        const typename Finder::word w0 = bm.word_at(0);
+        LeadPrefetcher<T, Store, Finder> lead(
+            bm,
+            store,
+            0,
+            w0,
+            store.at(0),
+            false,
+            Ahead);
 
-        while (curr_batch_sz) {
-            const std::size_t next_batch_sz = iter.fill_next_batch(*nxt);
-
-            // prefill next batch
-            for (std::size_t i = 0; i < next_batch_sz; ++i)
-                prefetch_read(store.at((*nxt)[i]));
-
-            //eat
-            for (std::size_t i = 0; i < curr_batch_sz; ++i) {
-                const std::size_t idx = (*cur)[i];
-                fn(idx, *store.at(idx));
-            }
-            std::swap(cur, nxt);
-            curr_batch_sz = next_batch_sz;
+        for (std::size_t ci = 0; ci < total; ++ci) {
+            typename Finder::word cw = bm.word_at(ci);
+            if (!cw) continue;
+            auto* base = store.at(ci * WB);
+            do {
+                const int b = std::countr_zero(cw);
+                lead.pump();
+                fn(ci * WB + static_cast<std::size_t>(b), base[b]);
+                cw &= cw - 1;
+            } while (cw);
         }
     }
 }

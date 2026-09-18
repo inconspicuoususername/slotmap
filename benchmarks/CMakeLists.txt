@@ -43,7 +43,7 @@ target_sources(bench_common
 
 target_include_directories(bench_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
 target_compile_features(bench_common PUBLIC cxx_std_26)
-target_compile_options(bench_common PUBLIC -O3 -march=native -DNDEBUG)
+target_compile_options(bench_common PUBLIC -O3 -march=native -DNDEBUG -fmodules)
 target_link_libraries(bench_common PUBLIC inco::slotmap)
 
 
@@ -95,7 +95,7 @@ add_slotmap_benchmark(slotmap-bench-external
 add_slotmap_benchmark(slotmap-bench-clean
         MODULES external/cleanroom.cppm
         DEPENDS bench_external_deps
-        OPTIONS -g1
+        OPTIONS -g -fno-omit-frame-pointer -mavx2
 )
 
 add_slotmap_benchmark(slotmap-bench-perf

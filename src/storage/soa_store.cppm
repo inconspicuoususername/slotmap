@@ -3,18 +3,18 @@ module;
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <memory>
 #include <utility>
 #include <vector>
 export module slotmap.storage:soa_store;
 import slotmap.utils;
+import :page_pool;
 
 namespace inco {
     // TODO subclass paged instead of CTRL + C
     export template <
         class T,
         class V = std::uint32_t,
-        std::size_t BytesPerPage = 16 * 1024,
+        std::size_t BytesPerPage = 64 * 1024,
         std::size_t MinSlots = 32
     >
     class SoAStore {
@@ -35,6 +35,32 @@ namespace inco {
         static constexpr std::size_t page_bytes =
             versions_off + page_slots * sizeof(V);
 
+        SoAStore() = default;
+
+        SoAStore(const SoAStore&) = delete;
+
+        SoAStore& operator=(const SoAStore&) = delete;
+
+        SoAStore(SoAStore&& o) noexcept
+            : pages_(std::move(o.pages_)),
+              _hot_page(o._hot_page),
+              _hot_base(o._hot_base) {
+            o.reset_moved_from();
+        }
+
+        SoAStore& operator=(SoAStore&& o) noexcept {
+            if (this != &o) {
+                release_all();
+                pages_ = std::move(o.pages_);
+                _hot_page = o._hot_page;
+                _hot_base = o._hot_base;
+                o.reset_moved_from();
+            }
+            return *this;
+        }
+
+        ~SoAStore() { release_all(); }
+
         [[nodiscard]] T* at(const std::size_t i) noexcept {
             return value_base(i >> page_shift) + (i & page_mask);
         }
@@ -54,7 +80,7 @@ namespace inco {
         void ensure(const std::size_t cap) {
             const std::size_t want_pages = (cap + page_slots - 1) >> page_shift;
             while (pages_.size() < want_pages)
-                pages_.push_back(make_zeroed_page());
+                pages_.push_back(new_page());
         }
 
         [[nodiscard]] std::size_t capacity() const noexcept {
@@ -85,10 +111,23 @@ namespace inco {
             alignas(T) std::byte bytes[page_bytes];
         };
 
-        static std::unique_ptr<Page> make_zeroed_page() {
-            auto p = std::make_unique<Page>();
-            std::memset(p->bytes, 0, sizeof(p->bytes));
+        using Pool = PagePool<sizeof(Page), alignof(Page)>;
+        
+        static Page* new_page() {
+            Page* p = static_cast<Page*>(Pool::acquire());
+            std::memset(p->bytes + versions_off, 0, page_bytes - versions_off);
             return p;
+        }
+
+        void release_all() noexcept {
+            for (Page* p : pages_) Pool::release(p);
+            pages_.clear();
+        }
+
+        void reset_moved_from() noexcept {
+            pages_.clear();
+            _hot_page = static_cast<std::size_t>(-1);
+            _hot_base = nullptr;
         }
 
         T* value_base(std::size_t page) noexcept {
@@ -99,7 +138,7 @@ namespace inco {
             return reinterpret_cast<V*>(pages_[page]->bytes + versions_off);
         }
 
-        std::vector<std::unique_ptr<Page> > pages_{};
+        std::vector<Page*> pages_{};
         std::size_t _hot_page = static_cast<std::size_t>(-1);
         T* _hot_base = nullptr;
     };

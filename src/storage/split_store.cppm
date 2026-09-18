@@ -11,7 +11,7 @@ namespace inco {
     export template <
         class T,
         class V = std::uint32_t,
-        std::size_t BytesPerPage = 16 * 1024,
+        std::size_t BytesPerPage = 64 * 1024,
         std::size_t MinSlots = 32
     >
     class SplitStore {
@@ -53,7 +53,7 @@ namespace inco {
         void destroy(std::size_t i) noexcept { values_.destroy(i); }
 
     private:
-        PagedStore<T, BytesPerPage, MinSlots> values_{};
-        PagedStore<V, BytesPerPage, MinSlots> versions_{};
+        PagedStore<T, BytesPerPage, MinSlots, false> values_{};
+        PagedStore<V, BytesPerPage, MinSlots, true> versions_{};
     };
 }

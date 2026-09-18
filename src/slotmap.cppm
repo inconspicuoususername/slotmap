@@ -5,3 +5,4 @@ export import :sparse;
 
 export import slotmap.free;
 export import slotmap.storage;
+export import slotmap.iterators;
