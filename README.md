@@ -1,5 +1,10 @@
 # slotmap
 
+[![CI](https://github.com/inconspicuoususername/slotmap/actions/workflows/ci.yml/badge.svg)](https://github.com/inconspicuoususername/slotmap/actions/workflows/ci.yml)
+![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg?logo=cplusplus)
+![Compilers](https://img.shields.io/badge/compilers-GCC%2016%20%7C%20Clang%2022-orange.svg)
+![Header](https://img.shields.io/badge/modules-C%2B%2B20-8A2BE2.svg)
+
 A very fast [slotmap](https://docs.rs/slotmap/latest/slotmap/) implementation written in C++23 using modules.
 
 ```cpp

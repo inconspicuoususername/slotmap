@@ -2,6 +2,7 @@ module;
 
 #include <cstddef>
 #include <deque>
+#include <utility>
 #include <vector>
 
 #include "../macros.h"
@@ -13,6 +14,24 @@ import :utils;
 namespace inco {
     struct SlotRing {
         static constexpr std::size_t cap = 1024;
+
+        SlotRing() = default;
+        SlotRing(const SlotRing&) = default;
+        SlotRing& operator=(const SlotRing&) = default;
+
+        SlotRing(SlotRing&& o) noexcept
+            : _buf(std::move(o._buf)),
+              _head(std::exchange(o._head, 0)),
+              _count(std::exchange(o._count, 0)) {}
+
+        SlotRing& operator=(SlotRing&& o) noexcept {
+            if (this != &o) {
+                _buf = std::move(o._buf);
+                _head = std::exchange(o._head, 0);
+                _count = std::exchange(o._count, 0);
+            }
+            return *this;
+        }
 
         [[nodiscard]] FORCE_INLINE bool full() const noexcept {
             return _count >= cap;
@@ -53,6 +72,22 @@ namespace inco {
         using word = HierarchicalBitmap::word;
         static constexpr int word_bits = HierarchicalBitmap::word_bits;
         static constexpr std::size_t npos = HierarchicalBitmap::npos;
+
+        DeferredBitmap() = default;
+        DeferredBitmap(const DeferredBitmap&) = default;
+        DeferredBitmap& operator=(const DeferredBitmap&) = default;
+
+        DeferredBitmap(DeferredBitmap&& o) noexcept
+            : _bitmap(std::move(o._bitmap)),
+              _frontier(std::exchange(o._frontier, 0)) {}
+
+        DeferredBitmap& operator=(DeferredBitmap&& o) noexcept {
+            if (this != &o) {
+                _bitmap = std::move(o._bitmap);
+                _frontier = std::exchange(o._frontier, 0);
+            }
+            return *this;
+        }
 
         void grow(const std::size_t slots) { _bitmap.grow(slots); }
 
@@ -124,6 +159,26 @@ namespace inco {
         using word = HierarchicalBitmap::word;
         static constexpr int word_bits = HierarchicalBitmap::word_bits;
         static constexpr std::size_t npos = HierarchicalBitmap::npos;
+
+        LiveAllocBitmap() = default;
+        LiveAllocBitmap(const LiveAllocBitmap&) = default;
+        LiveAllocBitmap& operator=(const LiveAllocBitmap&) = default;
+
+        LiveAllocBitmap(LiveAllocBitmap&& o) noexcept
+            : _alloc(std::move(o._alloc)),
+              _live(std::move(o._live)),
+              _ring(std::move(o._ring)),
+              _frontier(std::exchange(o._frontier, 0)) {}
+
+        LiveAllocBitmap& operator=(LiveAllocBitmap&& o) noexcept {
+            if (this != &o) {
+                _alloc = std::move(o._alloc);
+                _live = std::move(o._live);
+                _ring = std::move(o._ring);
+                _frontier = std::exchange(o._frontier, 0);
+            }
+            return *this;
+        }
 
         [[nodiscard]] FORCE_INLINE std::size_t acquire() noexcept {
             std::size_t slot;

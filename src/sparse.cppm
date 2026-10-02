@@ -1,11 +1,14 @@
 module;
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cstdint>
 #include <expected>
 #include <functional>
 #include <iostream>
+#include <optional>
+#include <type_traits>
 #include <utility>
 
 export module slotmap:sparse;
@@ -19,6 +22,16 @@ import :iterators;
 import :utils;
 
 namespace inco {
+    template <bool BitmapView, class T, class Store, class Finder>
+    struct default_slot_iterator {
+        using type = FreeListIter<T, Store, Finder>;
+    };
+
+    template <class T, class Store, class Finder>
+    struct default_slot_iterator<true, T, Store, Finder> {
+        using type = PageWalkIter<T, Store, Finder>;
+    };
+
     export template <
         typename T,
         typename Tag = T,
@@ -38,13 +51,37 @@ namespace inco {
 
         using IteratorType = std::conditional_t<
             std::is_same_v<Iterator, void>,
-            PageWalkIter<T, SlotStorage, Finder>,
+            typename default_slot_iterator<
+                LiveViewBitmap<Finder>, T, SlotStorage, Finder>::type,
             Iterator
         >;
 
         static_assert(
             std::constructible_from<IteratorType, finder_t&, storage_t&>,
             "The provided Iterator type must be constructible from the required arguments.");
+
+        SparseSlotMap() = default;
+
+        // TODO: add copy constructor
+        SparseSlotMap(const SparseSlotMap&) = delete;
+        SparseSlotMap& operator=(const SparseSlotMap&) = delete;
+
+        SparseSlotMap(SparseSlotMap&& o) noexcept
+            : free_(std::move(o.free_)),
+              store_(std::move(o.store_)),
+              size_(std::exchange(o.size_, 0)) {}
+
+        SparseSlotMap& operator=(SparseSlotMap&& o) noexcept {
+            if (this != &o) {
+                destroy_live();
+                free_ = std::move(o.free_);
+                store_ = std::move(o.store_);
+                size_ = std::exchange(o.size_, 0);
+            }
+            return *this;
+        }
+
+        ~SparseSlotMap() { destroy_live(); }
 
         template <class... Args>
         requires std::constructible_from<T, Args...>
@@ -105,7 +142,7 @@ namespace inco {
 
         // slow version
         [[nodiscard]] std::optional<T> at(key_type k) const {
-            if (T* p = find(k)) return std::reference_wrapper<T>{*p};
+            if (const T* p = find(k)) return *p;
             return std::nullopt;
         }
 
@@ -175,6 +212,34 @@ namespace inco {
 
     private:
         template <int, class> friend struct for_each_unrolled_closure;
+
+        void destroy_live() noexcept {
+            if constexpr (!std::is_trivially_destructible_v<T>) {
+
+                if (size_ == 0) return;
+
+                if constexpr (LiveViewBitmap<Finder>) {
+                    // this is probably faster
+
+                    const std::size_t words =
+                        utils::ceil_div(free_.capacity(), Finder::word_bits);
+                    for (std::size_t w = 0; w < words; ++w) {
+                        typename Finder::word bits = free_.word_at(w);
+                        while (bits) {
+                            const std::size_t idx =
+                                w * static_cast<std::size_t>(Finder::word_bits) +
+                                static_cast<std::size_t>(std::countr_zero(bits));
+                            store_.destroy(idx);
+                            bits &= bits - 1;
+                        }
+                    }
+                } else {
+                    for (auto it = begin(); it != end(); ++it)
+                        store_.destroy((*it).index);
+                }
+            }
+        }
+
         [[gnu::cold, gnu::noinline]]
         std::size_t grow_and_reacquire() {
             expand(get_growth_factor());

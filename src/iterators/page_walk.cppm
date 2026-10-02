@@ -16,7 +16,7 @@ namespace inco {
     // Requires page_slots % word_bits == 0 so a word is at the very least one page
     export template <class T, class Store, class Finder = HierarchicalBitmap,
         bool USE_FLAT_BIT_POP = true>
-        requires Storage<Store, T> && LiveBitmapView<Finder>
+        requires Storage<Store, T> && LiveViewBitmap<Finder>
     class PageWalkIter {
     public:
         using entry = SlotMapIteratorEntry<T>;

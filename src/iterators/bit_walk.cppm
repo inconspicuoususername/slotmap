@@ -13,7 +13,7 @@ namespace inco {
     // walk but PageWalk does the page lookup once per word (a word's 64 slots share one
     // page), so its faster in iteration
     export template<class T, class Store, class Finder = HierarchicalBitmap>
-        requires Storage<Store, T> && LiveBitmapView<Finder>
+        requires Storage<Store, T> && LiveViewBitmap<Finder>
     class BitWalkIter {
     public:
         using entry = SlotMapIteratorEntry<T>;

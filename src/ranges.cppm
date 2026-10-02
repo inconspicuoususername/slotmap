@@ -15,7 +15,7 @@ namespace inco {
         template <
             class T,
             class Tag, class Finder, class SlotStorage, class Iterator>
-            requires IterativeLambda<Fn, T> && LiveBitmapView<Finder>
+            requires IterativeLambda<Fn, T> && LiveViewBitmap<Finder>
         void operator()(
             SparseSlotMap<T, Tag, Finder, SlotStorage, Iterator>& sparse) const {
             constexpr int K =

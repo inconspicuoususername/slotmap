@@ -1,7 +1,9 @@
 module;
 #include <iterator>
-#include "../macros.h"
-export module slotmap:iterators.unroll;
+#include <cstdint>
+
+#include "../../macros.h"
+export module slotmap:iterators.experiments.unroll;
 import :free;
 import :utils;
 import :concepts;
@@ -9,7 +11,7 @@ import :iterators.entity;
 
 namespace inco {
     export template <class T, class Store, class Finder>
-        requires Storage<Store, T> && LiveBitmapView<Finder>
+        requires Storage<Store, T> && LiveViewBitmap<Finder>
     class UnrolledPageWalkIter {
     public:
         using entry = SlotMapIteratorEntry<T>;
@@ -85,7 +87,7 @@ namespace inco {
 
     // attempt to solve blsr load dependency (thank you x86)
     export template <class Finder, class Store, class Fn>
-        requires LiveBitmapView<Finder>
+        requires LiveViewBitmap<Finder>
     void for_each_expanded(const Finder& bitmap, Store& store, Fn&& fn) {
         constexpr auto WORD_BITS = Finder::word_bits;
         constexpr auto WORD_1 = typename Finder::word{1};
@@ -106,7 +108,7 @@ namespace inco {
     }
 
     export template <class T, class Finder, class Store, class Fn, int K = 8>
-        requires LiveBitmapView<Finder> && IterativeLambda<Fn, T>
+        requires LiveViewBitmap<Finder> && IterativeLambda<Fn, T>
     void for_each_unrolled(const Finder& bitmap, Store& store, Fn&& fn) {
         const std::size_t total =
             utils::ceil_div(bitmap.capacity(), Finder::word_bits);
@@ -139,7 +141,7 @@ namespace inco {
     }
 
     export template <class Finder, class Store, class Fn, int K = 8>
-        requires LiveBitmapView<Finder>
+        requires LiveViewBitmap<Finder>
     void for_each_unrolled2(const Finder& bm, Store& store, Fn&& fn) {
         const std::size_t total = utils::ceil_div(bm.capacity(), Finder::word_bits);
 

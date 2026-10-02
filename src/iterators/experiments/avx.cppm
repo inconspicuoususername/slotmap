@@ -5,7 +5,7 @@ module;
 #include <bit>
 #include <cstdint>
 #include <type_traits>
-export module slotmap:iterators.avx;
+export module slotmap:iterators.experiments.avx;
 import :concepts;
 import :utils;
 
@@ -15,7 +15,7 @@ namespace inco {
     // code was really confusing so i had gemini annotate the avx slop
     // enjoy
     export template <class Finder, class Store, class Fn>
-        requires LiveBitmapView<Finder>
+        requires LiveViewBitmap<Finder>
     void for_each_avx(const Finder& bm, Store& store, Fn&& fn) {
         using T = std::remove_pointer_t<decltype(store.at(0))>;
         using Byte = std::conditional_t<std::is_const_v<T>, const char, char>;
@@ -100,7 +100,7 @@ namespace inco {
     }
 
     export template <class Finder, class Store, class Fn>
-        requires LiveBitmapView<Finder>
+        requires LiveViewBitmap<Finder>
     void for_each_avx_lanes(const Finder& bm, Store& store, Fn&& fn) {
         using T = std::remove_pointer_t<decltype(store.at(0))>;
         static_assert(Finder::word_bits == 64);

@@ -32,8 +32,8 @@ namespace inco {
         static constexpr std::size_t values_bytes = page_slots * sizeof(T);
         static constexpr std::size_t versions_off =
             (values_bytes + alignof(V) - 1) & ~(alignof(V) - 1);
-        static constexpr std::size_t page_bytes =
-            versions_off + page_slots * sizeof(V);
+
+        static constexpr std::size_t page_bytes = versions_off + values_bytes;
 
         SoAStore() = default;
 

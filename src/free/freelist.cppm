@@ -2,7 +2,11 @@ module;
 
 #include <cstddef>
 #include <cstdint>
+#include <queue>
+#include <unordered_set>
+#include <utility>
 #include <vector>
+// #include "absl/container/flat_hash_set.h"
 
 export module slotmap:free.freelist;
 
@@ -19,43 +23,79 @@ namespace inco {
     // so yeah
     export class FreeList {
     public:
-        static constexpr std::size_t nil = static_cast<std::size_t>(-1);
-        static constexpr std::size_t npos = nil;
+        using index_type = std::size_t;
+        static constexpr index_type nil = static_cast<index_type>(-1);
+        static constexpr index_type npos = nil;
 
-        [[nodiscard]] std::size_t acquire() noexcept {
-            // if freelist is empty, caller needs to grow it
-            if (head_ == nil) return npos;
+        FreeList() = default;
+        FreeList(const FreeList&) = default;
+        FreeList& operator=(const FreeList&) = default;
 
-            //get top free index
-            const std::size_t i = head_;
+        FreeList(FreeList&& o) noexcept
+            : _free_set(std::move(o._free_set)),
+              _high_water_mark(std::exchange(o._high_water_mark, nil)),
+              _capacity(std::exchange(o._capacity, 0)) {}
 
-            // pop top free index and feed it into head_
-            head_ = next_[i];
-            return i;
+        FreeList& operator=(FreeList&& o) noexcept {
+            if (this != &o) {
+                _free_set = std::move(o._free_set);
+                _high_water_mark = std::exchange(o._high_water_mark, nil);
+                _capacity = std::exchange(o._capacity, 0);
+            }
+            return *this;
         }
 
-        void release(std::size_t slot) noexcept {
-            next_[slot] = head_;
-            head_ = slot;
+        [[nodiscard]] index_type acquire() noexcept {
+            // if freelist is empty, caller needs to grow it
+            if (_free_set.empty()) return npos;
+
+            //get top free index
+            // const index_type i = _high_water_mark;
+
+            // pop top free index and feed it into head_
+            // head_ = next_[i];
+            const auto it = _free_set.begin();
+            if (it == _free_set.end()) return npos;
+            const index_type ret = *it;
+            _free_set.erase(it);
+            return ret;
+        }
+
+        void release(index_type slot) noexcept {
+            _free_set.emplace(slot);
         }
 
         void grow(std::size_t slots) {
-            next_.resize(slots);
-
-            for (std::size_t i = slots; i-- > capacity_;) {
-                next_[i] = head_;
-                head_ = i;
-            }
-            capacity_ = slots;
+            // next_.resize(slots);
+            // no way to resize the std priority queue.... thank you wg 21
+            if (_capacity >= slots) return;
+            _high_water_mark = slots;
+            for (index_type i = slots; i-- > _capacity;) _free_set.emplace(i);
+            _capacity = slots;
         }
 
-        [[nodiscard]] std::size_t capacity() const noexcept {
-            return capacity_;
+        [[nodiscard]] index_type capacity() const noexcept {
+            return _capacity;
+        }
+
+        // [[nodiscard]] std::vector<bool> live_slots() const {
+        //     std::vector<bool> live(capacity_, true);
+        //     for (index_type i = head_; i != nil; i = next_[i])
+        //         live[i] = false;
+        //     return live;
+        // }
+
+        [[nodiscard]] bool is_live(const index_type slot) const noexcept {
+            return slot < _capacity && !_free_set.contains(slot);
         }
 
     private:
-        std::vector<std::size_t> next_{};
-        std::size_t head_ = nil;
-        std::size_t capacity_ = 0;
+        // std::vector<index_type> next_{};
+        // use deque because the stupid std implementation has no resize() method
+        // std::priority_queue<index_type, std::deque<index_type>, std::greater<>> _free_list;
+        std::unordered_set<index_type> _free_set;
+        // std::size_t head_ = nil;
+        std::size_t _high_water_mark = 0;
+        std::size_t _capacity = 0;
     };
 }

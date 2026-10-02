@@ -18,7 +18,7 @@ namespace inco {
     };
 
     export template <class F>
-    concept LiveBitmapView = requires(const F cf, std::size_t n)
+    concept LiveViewBitmap = requires(const F cf, std::size_t n)
     {
         typename F::word;
         { cf.word_at(n) } -> std::convertible_to<std::uint64_t>;
@@ -26,10 +26,18 @@ namespace inco {
         { F::word_bits } -> std::convertible_to<int>;
     };
 
+    export template <class F>
+    concept LiveViewSlots = requires(const F cf, std::size_t n)
+    {
+        { cf.is_live(n) } -> std::convertible_to<bool>;
+        { cf.capacity() } -> std::convertible_to<std::size_t>;
+    };
+
     // currently .at returns a ptr but prolly should return const ref or something ismilar
     export template <class S, class T>
     concept Storage = requires(S s, const S cs, std::size_t n)
     {
+        { S::page_slots } -> std::convertible_to<std::size_t>;
         { s.at(n) } -> std::same_as<T*>;
         { s.ensure(n) };
         { cs.capacity() } -> std::convertible_to<std::size_t>;

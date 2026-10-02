@@ -4,8 +4,8 @@ module;
 #include <cstddef>
 #include <iterator>
 #include <type_traits>
-#include "../macros.h"
-export module slotmap:iterators.batched_prefetch;
+#include "../../macros.h"
+export module slotmap:iterators.experiments.batched_prefetch;
 import :utils;
 import :concepts;
 import :iterators.entity;
@@ -59,7 +59,7 @@ namespace inco {
     };
 
     export template <class T, class Store, class Finder, std::size_t Ahead = 64>
-        requires Storage<Store, T> && LiveBitmapView<Finder>
+        requires Storage<Store, T> && LiveViewBitmap<Finder>
     class PrefetchPageWalkIter {
     public:
         using entry = SlotMapIteratorEntry<T>;
@@ -137,7 +137,7 @@ namespace inco {
 
     export template <class Finder, class Store, class
         Fn, std::size_t Ahead = 64>
-        requires LiveBitmapView<Finder>
+        requires LiveViewBitmap<Finder>
     void for_each_prefetched(const Finder& bm, Store& store, Fn&& fn) {
         using T = std::remove_pointer_t<decltype(store.at(std::size_t{}))>;
         constexpr std::size_t WB = Finder::word_bits;

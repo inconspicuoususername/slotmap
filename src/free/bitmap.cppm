@@ -3,6 +3,7 @@ module;
 #include <array>
 #include <bit>
 #include <cstdint>
+#include <utility>
 #include <vector>
 #include <cassert>
 #include <cmath>
@@ -31,9 +32,6 @@ namespace inco {
 
         using slot_index = std::size_t;
         using word_index = std::size_t;
-        //
-        // enum class bit_index : std::size_t {};
-        // enum class word_index : std::size_t {};
 
         static constexpr int word_bits = 64;
         static constexpr word full = ~word{0};
@@ -42,6 +40,25 @@ namespace inco {
             utils::const_pow(word_bits, max_levels);
 
         static constexpr std::size_t LEAF_LEVEL = 0;
+
+        HierarchicalBitmap() = default;
+        HierarchicalBitmap(const HierarchicalBitmap&) = default;
+        HierarchicalBitmap& operator=(const HierarchicalBitmap&) = default;
+
+
+        HierarchicalBitmap(HierarchicalBitmap&& o) noexcept
+            : _levels(std::move(o._levels)),
+              _depth(std::exchange(o._depth, 0)),
+              _capacity(std::exchange(o._capacity, 0)) {}
+
+        HierarchicalBitmap& operator=(HierarchicalBitmap&& o) noexcept {
+            if (this != &o) {
+                _levels = std::move(o._levels);
+                _depth = std::exchange(o._depth, 0);
+                _capacity = std::exchange(o._capacity, 0);
+            }
+            return *this;
+        }
 
 
         // Previously was an std optional, but std optional was returned in an xmm register
